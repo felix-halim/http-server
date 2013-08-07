@@ -10,8 +10,9 @@ static void add(Request &req, Response &res) {
   int a;
   vector<int> b;
 
+  Log::info("url = %s", req.url().c_str());
   UrlParser url(req.url());
-  url >> req.prefix().c_str(); // Match the request prefix.
+  url >> res.prefix().c_str(); // Match the request prefix.
   url >> a;
   url >> "/";
   url >> b;

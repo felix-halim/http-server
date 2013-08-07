@@ -17,13 +17,21 @@ namespace http {
   using namespace std;
   using namespace chrono;
 
+  // Global logging to standard error.
+  struct Log {
+    static int max_level;
+    static void error(const char *fmt, ... );
+    static void warn(const char *fmt, ... );
+    static void info(const char *fmt, ... );
+  };
+
   class UrlParser {
     stringstream s;
     bool error;
 
    public:
 
-    UrlParser(string str): s(str), error(false) {}
+    UrlParser(string str): error(false) { s << str; }
 
     bool has_error() { return error; }
 
@@ -70,14 +78,10 @@ namespace http {
 
   class Request {
     unordered_map<string, string> headers_;
-    string prefix_;
     string url_;
     string body_;
 
    public:
-
-    // Returns the prefix used to accept the request.
-    const string& prefix() { return prefix_; }
 
     // Returns the request URL.
     const string url() { return url_; }
@@ -88,8 +92,9 @@ namespace http {
     // Returns the value of the specified header key.
     const string header(string key) const;
 
+    void set_url(string url) { url_ = url; }
     void set_header(string key, string value) { headers_[key] = value; }
-    void clear() { headers_.clear(); prefix_ = url_ = body_ = ""; }
+    void clear() { headers_.clear(); url_ = body_ = ""; }
   };
 
 
@@ -157,13 +162,6 @@ namespace http {
   };
 
 
-  // Global logging to standard error.
-  struct Log {
-    static int max_level;
-    static void error(const char *fmt, ... );
-    static void warn(const char *fmt, ... );
-    static void info(const char *fmt, ... );
-  };
 }
 
 #endif

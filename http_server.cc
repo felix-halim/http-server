@@ -178,22 +178,18 @@ class Connection : public ObjectPool {
   }
 
   int append_url(const char *p, size_t len) {
-    Log::info("append_url %.*s", len, p);
     assert(state_ == State::READING_URL);
     url_.write(p, len);
     return 0;
   }
 
   int append_header_field(const char *p, size_t len) {
-    Log::info("append_hf %.*s", len, p);
-    if (state_ == State::READING_URL) state_ = State::READING_HEADER_FIELD;
     finish_header_parsing();
     temp_hf_.write(p, len);
     return 0;
   }
 
   int append_header_value(const char *p, size_t len) {
-    Log::info("append_hv %.*s", len, p);
     assert(state_ != State::READING_URL);
     assert(state_ != State::READING_HEADER_VALUE);
     if (state_ == State::READING_HEADER_FIELD) state_ = State::READING_HEADER_VALUE;
@@ -202,22 +198,22 @@ class Connection : public ObjectPool {
   }
 
   int append_body(const char *p, size_t len) {
-    Log::info("append_body %.*s", len, p);
     body_.write(p, len);
     return 0;
   }
 
   bool parse(const char *buf, ssize_t nread) {
     assert(server_);
-    Log::info("parse %.*s", nread, buf);
-    Log::info("server_ %p, %p", server_, server_->get_parser_settings());
     ssize_t parsed = http_parser_execute(&parser_, server_->get_parser_settings(), buf, nread);
-    Log::info("server_ %p", server_);
     assert(parsed <= nread);
     return parsed == nread;
   }
 
   void finish_header_parsing() {
+    if (state_ == State::READING_URL) {
+      request_.set_url(url_.str());
+      state_ = State::READING_HEADER_FIELD;
+    }
     if (state_ == State::READING_HEADER_VALUE) {
       request_.set_header(temp_hf_.str(), temp_hv_.str());
       clear_ss(temp_hf_);
@@ -236,13 +232,12 @@ void Response::set_connection(Connection *connection) {
 
 
 
-static int on_url(http_parser *parser, const char *p, size_t len){ 
-  Log::info("UUUU");
-  assert(parser->data); return ((Connection*) parser->data)->append_url(p, len); }
-static int on_header_field(http_parser *parser, const char *at, size_t len){ Log::info("UUUU");assert(parser->data); return ((Connection*) parser->data)->append_header_field(at, len); }
-static int on_header_value(http_parser *parser, const char *at, size_t len){ Log::info("UUUU");assert(parser->data); return ((Connection*) parser->data)->append_header_value(at, len); }
-static int on_headers_complete(http_parser* parser) { assert(parser->data); Log::info("UUUU");return ((Connection*) parser->data)->append_header_field("", 0); }
-static int on_body(http_parser *parser, const char *p, size_t len){ Log::info("UUUU");assert(parser->data); return ((Connection*) parser->data)->append_body(p, len); }
+static int on_message_begin(http_parser* parser) { return 0; }
+static int on_url(http_parser *parser, const char *p, size_t len){ return ((Connection*) parser->data)->append_url(p, len); }
+static int on_header_field(http_parser *parser, const char *at, size_t len){ return ((Connection*) parser->data)->append_header_field(at, len); }
+static int on_header_value(http_parser *parser, const char *at, size_t len){ return ((Connection*) parser->data)->append_header_value(at, len); }
+static int on_headers_complete(http_parser* parser) { return ((Connection*) parser->data)->append_header_field("", 0); }
+static int on_body(http_parser *parser, const char *p, size_t len){ return ((Connection*) parser->data)->append_body(p, len); }
 
 static bool is_prefix_of(const string &prefix, const string &str) {
   auto res = std::mismatch(prefix.begin(), prefix.end(), str.begin());
@@ -290,7 +285,6 @@ static void url_decode(char *str, char *buf) {
 //   }
 // }
 static int on_message_complete(http_parser *parser) {
-  Log::info("on_message_complete");
   Connection *c = (Connection*) parser->data;
   c->finish_header_parsing();
   c->server()->varz_inc("server_on_message_complete");
@@ -305,6 +299,7 @@ static void varz_handler(Request &req, Response &res) {
   res.send();
 }
 Server::Server() {
+  parser_settings.on_message_begin = on_message_begin;
   parser_settings.on_url = on_url;
   parser_settings.on_header_field = on_header_field;
   parser_settings.on_header_value = on_header_value;
@@ -313,7 +308,6 @@ Server::Server() {
   parser_settings.on_message_complete = on_message_complete;
   connections_pool = new ObjectsPool<Connection>(this, "Connection");
   get("/varz", varz_handler);
-  Log::info("server %p; %p", this, &parser_settings);
 }
 
 void Server::varz_print(stringstream &ss) {
@@ -333,8 +327,8 @@ void Server::varz_print(stringstream &ss) {
 
 void Server::process(Request &req, Response &res) {
   for (auto &it : handlers) {
-    if (is_prefix_of(it.first, req.prefix())) {
-      res.set_prefix(req.prefix());
+    if (is_prefix_of(it.first, req.url())) {
+      res.set_prefix(it.first);
       it.second(req, res);
       return;
     }
@@ -373,33 +367,27 @@ static void on_close(uv_handle_t* handle) {
   try_release_connection(c);
 }
 static void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
-  Log::info("on_read");
   assert(buffer_is_used);
   buffer_is_used = 0;
   Connection* c = (Connection*) tcp->data;
   assert(c);
-  Log::info("on_read %p", c);
   if (nread >= 0) {
     if (!c->parse(buf.base, nread)) uv_close((uv_handle_t*) c->handle(), on_close);
   } else {
     uv_close((uv_handle_t*) c->handle(), on_close);
   }
-  Log::info("on_read2");
 }
 static void on_connect(uv_stream_t* server_handle, int status) {
-  Log::info("on_connect");
   Server *server = (Server*) server_handle->data;
   assert(server && !status);
   server->varz_inc("server_on_connect");
   Connection* c = server->acquire_connection();
   c->reset();
-  Log::info("on_connect %p", c);
   uv_tcp_init(uv_default_loop(), c->handle());
   status = uv_accept(server_handle, (uv_stream_t*)c->handle());
   assert(!status);
   http_parser_init(c->parser(), HTTP_REQUEST);
   uv_read_start((uv_stream_t*)c->handle(), on_alloc, on_read);
-  Log::info("on_connect1");
 }
 void Server::listen(const char *address, int port) {
   signal(SIGPIPE, SIG_IGN);
@@ -450,7 +438,6 @@ static int sstream_length(stringstream &ss) {
 }
 
 void Response::send(double expected_runtime, int max_age_in_seconds) {
-  Log::info("send");
   assert(!is_sent_); is_sent_ = true;
   Connection *c = connection();
   c->server()->varz_inc("Response_send");
