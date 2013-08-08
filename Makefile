@@ -7,20 +7,16 @@ all: ./build ./test_server
 
 ./test_server: test.cc
 	make -C ./build/ test_server
-	cp ./build/out/Release/test_server ./test_server
+	cp ./build/out/release/test_server ./test_server
 
 distclean:
 	make clean
 	rm -rf ./build
 
-test:
-	./build/out/Release/test_server
-
 clean:
-	rm -rf ./build/out/Release/obj.target/http_server/
-	rm -f ./build/out/Release/http_server
-	rm -f ./http_server
-	rm -rf ./build/out
+	rm -rf ./build/out/release/obj.target/test_server/
+	rm -f ./build/out/release/test_server
+	rm -f ./test_server
 
 .PHONY: test
 
