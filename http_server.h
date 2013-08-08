@@ -5,6 +5,7 @@
 #include <vector>
 #include <sstream>
 #include <string>
+#include <cstring>
 #include <map>
 #include <unordered_map>
 #include <chrono>
