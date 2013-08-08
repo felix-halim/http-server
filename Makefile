@@ -1,6 +1,8 @@
 all: ./build ./test_server
 
 ./build:
+	git submodule init
+	git submodule update
 	V=1 ./bin/gyp/gyp --depth=. -Goutput_dir=./out -Icommon.gypi --generator-output=./build -Dlibrary=static_library -f make
 
 ./test_server: test.cc
