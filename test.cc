@@ -10,17 +10,18 @@ static void add(Request &req, Response &res) {
   int a;
   vector<int> b;
 
-  Log::info("url = %s", req.url().c_str());
-  UrlParser url(req.url());
-  url >> res.prefix().c_str(); // Match the request prefix.
-  url >> a;
-  url >> "/";
-  url >> b;
+  req >> res.prefix().c_str(); // Match the request prefix.
+  req >> a;
+  req >> "/";
+  req >> b;
 
-  if (url.has_error()) return res.send(-1);
+  if (req.has_error()) return res.send(-1);
 
   for (int i : b) a *= i;
-  res.body << "hello " << a;
+  res.body << "hello " << a << "\n";
+
+  Log::info("url = %s, a = %d", req.url().c_str(), a);
+  if (a > 1000) return res.send(-2);
 
   res.send();
 }

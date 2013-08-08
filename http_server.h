@@ -1,6 +1,7 @@
 #ifndef _HTTP_SERVER_
 #define _HTTP_SERVER_
 
+#include <cassert>
 #include <vector>
 #include <sstream>
 #include <string>
@@ -25,61 +26,14 @@ namespace http {
     static void info(const char *fmt, ... );
   };
 
-  class UrlParser {
-    stringstream s;
-    bool error;
-
-   public:
-
-    UrlParser(string str): error(false) { s << str; }
-
-    bool has_error() { return error; }
-
-    UrlParser& operator >>(int &value) {
-      if (isdigit(s.peek()) || s.peek() == '-') s >> value; else error = true;
-      return *this;
-    }
-
-    UrlParser& operator >>(const char *str) {
-      char buf[1024];
-      int len = strlen(str);
-      s.read(buf, len);
-      error |= strncmp(str, buf, len);
-      return *this;
-    }
-
-    UrlParser& operator >>(std::vector<int> &arr) {
-      char buffer;
-      for (int value; !error; ) {
-        *this >> value;
-        if (error) break;
-        arr.push_back(value);
-        if (s.peek() != ',') break;
-        s.read(&buffer, 1);
-      }
-      return *this;
-    }
-  };
-
-  class ObjectPool {
-   protected:
-    int index_;
-    time_point<system_clock> start_time_;
-
-   public:
-    ObjectPool(): index_(-1) {}
-    unsigned long long elapsed();
-    int index() { return index_; }
-    void set_index(int index) { index_ = index; }
-    void init(int index);
-  };
-
-
 
   class Request {
     unordered_map<string, string> headers_;
     string url_;
     string body_;
+
+    stringstream url_ss_;
+    bool url_read_error_;
 
    public:
 
@@ -92,12 +46,41 @@ namespace http {
     // Returns the value of the specified header key.
     const string header(string key) const;
 
-    void set_url(string url) { url_ = url; }
+    // Read the next integer from the URL.
+    Request& operator >>(int &value);
+
+    // Read the next string that matches {@code str} from the URL.
+    Request& operator >>(const char *str);
+
+    // Read the next integers (in csv format) from the URL.
+    Request& operator >>(std::vector<int> &arr);
+
+    void set_url(string url);
     void set_header(string key, string value) { headers_[key] = value; }
     void clear() { headers_.clear(); url_ = body_ = ""; }
+    bool has_error() { return url_read_error_; }
   };
 
 
+
+  class ObjectPool {
+   protected:
+    int index_;
+    time_point<system_clock> start_time_;
+
+   public:
+    ObjectPool(): index_(-1) {}
+    int index() { return index_; }
+    void set_index(int index) { index_ = index; }
+    void init(int index) {
+      assert(index_ == -1 && index != -1);
+      index_ = index;
+      start_time_ = system_clock::now();
+    }
+    unsigned long long elapsed() {
+      return duration_cast<milliseconds>(system_clock::now() - start_time_).count();
+    }
+  };
 
   class Connection;
   class Response : public ObjectPool {
@@ -110,11 +93,15 @@ namespace http {
   public:
 
     void reset();
-    void set_connection(Connection*);
-    Connection* connection() { return connection_; }
-    void delete_buffer() { if (buffer) delete[] buffer; }
+    void delete_buffer() { if (buffer) { delete[] buffer; buffer = NULL; } }
+
+    // Setters.
     const string& prefix() { return prefix_; }
+    Connection* connection() { return connection_; }
+
+    // Getters.
     void set_prefix(string prefix) { prefix_ = prefix; }
+    void set_connection(Connection*);
 
     // Response body. Fill this before calling send().
     stringstream body;
@@ -155,13 +142,12 @@ namespace http {
     void varz_latency(string key, int us);
     void varz_print(stringstream &ss);
 
-    const http_parser_settings* get_parser_settings();
+    // For internal use.
     void process(Request &req, Response &res);
     Connection* acquire_connection();
     void release_connection(Connection*);
+    const http_parser_settings* get_parser_settings() { return &parser_settings; }
   };
-
-
 }
 
 #endif
