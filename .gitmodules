@@ -4,3 +4,6 @@
 [submodule "libuv"]
 	path = libuv
 	url = https://github.com/joyent/libuv.git
+[submodule "gyp"]
+	path = gyp
+	url = https://git.chromium.org/external/gyp.git
