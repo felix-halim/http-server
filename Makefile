@@ -8,7 +8,6 @@ all: ./build ./test_server
 ./test_server: test.cc
 	make -C ./build/ test_server
 	cp ./build/out/release/test_server ./test_server
-	./test_server
 
 distclean:
 	make clean
