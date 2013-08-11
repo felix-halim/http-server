@@ -17,23 +17,21 @@ To run:
 
 Then go to these URLs:
 
-    [http://localhost:8000/add/10/1,2,3](http://localhost:8000/add/10/1,2,3)
-    [http://localhost:8000/add/1000/1,2,3](http://localhost:8000/add/1000/1,2,3)
-    [http://localhost:8000/add/1000/1,2,x3](http://localhost:8000/add/1000/1,2,x3)
 
-The first URL should give:
+* [http://localhost:8000/add/10/1,2,3](http://localhost:8000/add/10/1,2,3)
 
-    hello 60
+    The response should be: hello 60
+ 
+* [http://localhost:8000/add/1000/1,2,3](http://localhost:8000/add/1000/1,2,3)
 
-The second URL should give:
+    The response should be: {"error":"Internal Server Error"}
 
-    {"error":"Internal Server Error"}
+* [http://localhost:8000/add/1000/1,2,x3](http://localhost:8000/add/1000/1,2,x3)
 
-The first URL should give:
+    The response should be: {"error":"URL Request Error"}
 
-    {"error":"URL Request Error"}
 
-See test.cc on how to use.
+See <b>test.cc</b> on how to use.
 
 
 <b>Note</b>: this project is just for trying out things.
