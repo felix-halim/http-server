@@ -13,6 +13,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "uv.h"
+#include "http_parser.h"
 #include "http_server.h"
 
 using namespace std;
@@ -264,6 +266,10 @@ Request& Request::operator >>(std::vector<int> &arr) {
  Response definitions.
  ***************************************/
 
+Response::Response() {
+  write_req = (uv_write_t*) malloc(sizeof(uv_write_t));
+}
+
 void Response::reset() {
   body.clear();
   body.str("");
@@ -300,7 +306,7 @@ void Response::send(double expected_runtime, int max_age_in_seconds) {
   assert(!c->responses_pool_is_empty());
   if (c->state() != State::CLOSED) {
     buffer = NULL;
-    write_req.data = this;
+    ((uv_write_t*) write_req)->data = this;
     uv_buf_t resbuf;
     if (expected_runtime < -1.5) {
       resbuf = (uv_buf_t){ (char*) RESPONSE_500, sizeof(RESPONSE_500) / sizeof(RESPONSE_500[0]) };
@@ -328,7 +334,7 @@ void Response::send(double expected_runtime, int max_age_in_seconds) {
       c->server()->varz_inc("server_sent_bytes", s.length());
       resbuf = (uv_buf_t){ buffer, s.length() };
     }
-    int error = uv_write(&write_req, (uv_stream_t*) c->handle(), &resbuf, 1, after_write);
+    int error = uv_write((uv_write_t*) write_req, (uv_stream_t*) c->handle(), &resbuf, 1, after_write);
     if (error) {
       Log::error("Could not write %d", error);
       c->release_response(this);
@@ -365,13 +371,14 @@ static void varz_handler(Request &req, Response &res) {
   res.send();
 }
 Server::Server() {
-  memset(&parser_settings, 0, sizeof(http_parser_settings));
-  parser_settings.on_url = on_url;
-  parser_settings.on_header_field = on_header_field;
-  parser_settings.on_header_value = on_header_value;
-  parser_settings.on_headers_complete = on_headers_complete;
-  parser_settings.on_body = on_body;
-  parser_settings.on_message_complete = on_message_complete;
+  parser_settings = new http_parser_settings();
+  memset(parser_settings, 0, sizeof(http_parser_settings));
+  parser_settings->on_url = on_url;
+  parser_settings->on_header_field = on_header_field;
+  parser_settings->on_header_value = on_header_value;
+  parser_settings->on_headers_complete = on_headers_complete;
+  parser_settings->on_body = on_body;
+  parser_settings->on_message_complete = on_message_complete;
   connections_pool = new ObjectsPool<Connection>(this, "Connection");
   get("/varz", varz_handler);
 }

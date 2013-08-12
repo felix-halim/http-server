@@ -11,8 +11,7 @@
 #include <chrono>
 #include <algorithm>
 
-#include "http_parser.h"
-#include "uv.h"
+class http_parser_settings;
 
 namespace http {
 
@@ -88,11 +87,12 @@ namespace http {
     Connection *connection_;
     string prefix_;
     bool is_sent_;
-    uv_write_t write_req;
+    void *write_req; // the type is uv_write_t
     char *buffer; // Delete this if not null;
 
   public:
 
+    Response();
     void reset();
     void delete_buffer() { if (buffer) { delete[] buffer; buffer = NULL; } }
 
@@ -123,7 +123,7 @@ namespace http {
     vector<pair<string, Handler>> handlers;
     map<string, LatencyHistogram*> varz_hist;
     map<string, unsigned long long> varz;
-    http_parser_settings parser_settings;
+    http_parser_settings *parser_settings;
     ObjectsPool<Connection> *connections_pool;
 
    public:
@@ -147,7 +147,7 @@ namespace http {
     void process(Request &req, Response &res);
     Connection* acquire_connection();
     void release_connection(Connection*);
-    const http_parser_settings* get_parser_settings() { return &parser_settings; }
+    const http_parser_settings* get_parser_settings() { return parser_settings; }
   };
 }
 

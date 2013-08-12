@@ -23,10 +23,7 @@
       'sources': [
         'test.cc',
       ],
-      'include_dirs': [
-        'http-parser',
-        'libuv/include',
-      ],
+      'include_dirs': [],
       'dependencies': [
         'http_server.gyp:http_server',
       ],
