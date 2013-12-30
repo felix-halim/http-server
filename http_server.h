@@ -49,8 +49,14 @@ namespace http {
     // Read the next integer from the URL.
     Request& operator >>(int &value);
 
+    // Read the next unsigned long long from the URL.
+    Request& operator >>(unsigned long long &value);
+
     // Read the next string that matches {@code str} from the URL.
     Request& operator >>(const char *str);
+
+    // Read the rest of the url.
+    Request& operator >>(string &str);
 
     // Read the next integers (in csv format) from the URL.
     Request& operator >>(std::vector<int> &arr);

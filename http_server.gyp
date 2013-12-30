@@ -1,5 +1,5 @@
 {
-  'includes': [ 'common.gypi' ],
+#  'includes': [ 'common.gypi' ],
   'targets': [
     {
       'target_name': 'http_server',
@@ -11,7 +11,7 @@
         'libuv/uv.gyp:libuv',
         'http-parser/http_parser.gyp:http_parser'
       ],
-      'cflags_cc': [ '-std=c++11' ],
+#      'cflags_cc': [ '-std=c++11' ],
       'xcode_settings': {
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
       },
@@ -27,7 +27,7 @@
       'dependencies': [
         'http_server.gyp:http_server',
       ],
-      'cflags_cc': [ '-std=c++11' ],
+#      'cflags_cc': [ '-std=c++11' ],
       'xcode_settings': {
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
       },

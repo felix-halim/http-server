@@ -1,4 +1,3 @@
-
 #include <algorithm>
 #include <map>
 #include <queue>
@@ -240,11 +239,25 @@ Request& Request::operator >>(int &value) {
   return *this;
 }
 
+Request& Request::operator >>(unsigned long long &value) {
+  if (isdigit(url_ss_.peek())) url_ss_ >> value;
+  else url_read_error_ = true;
+  return *this;
+}
+
 Request& Request::operator >>(const char *str) {
   char buf[1024];
   int len = strlen(str);
   url_ss_.read(buf, len);
   url_read_error_ |= strncmp(str, buf, len);
+  return *this;
+}
+
+Request& Request::operator >>(string &str) {
+  char buf[1024];
+  url_ss_.read(buf, 1024);
+  buf[url_ss_.gcount()] = '\0';
+  str = buf;
   return *this;
 }
 
@@ -425,11 +438,12 @@ void Server::get(std::string path, Handler handler) {
 
 static constexpr int MAX_BUFFER_LEN = 64 * 1024;
 static char buffer[MAX_BUFFER_LEN], buffer_is_used = 0;
-static uv_buf_t on_alloc(uv_handle_t* h, size_t suggested_size) {
+static void on_alloc(uv_handle_t* h, size_t suggested_size, uv_buf_t *buf) {
   assert(suggested_size == MAX_BUFFER_LEN); // libuv dependent code.
   assert(!buffer_is_used);
   buffer_is_used = 1;
-  return uv_buf_init(buffer, MAX_BUFFER_LEN);
+  buf->base = buffer;
+  buf->len = MAX_BUFFER_LEN;
 }
 static void on_close(uv_handle_t* handle) {
   Connection *c = (Connection*) handle->data;
@@ -437,13 +451,13 @@ static void on_close(uv_handle_t* handle) {
   c->set_state(State::CLOSED);
   try_release_connection(c);
 }
-static void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
+static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t *buf) {
   assert(buffer_is_used);
   buffer_is_used = 0;
   Connection* c = (Connection*) tcp->data;
   assert(c);
   if (nread >= 0) {
-    if (!c->parse(buf.base, nread)) uv_close((uv_handle_t*) c->handle(), on_close);
+    if (!c->parse(buf->base, nread)) uv_close((uv_handle_t*) c->handle(), on_close);
   } else {
     uv_close((uv_handle_t*) c->handle(), on_close);
   }
@@ -466,7 +480,10 @@ void Server::listen(const char *address, int port) {
   server.data = this;
   int status = uv_tcp_init(uv_default_loop(), &server);
   assert(!status);
-  status = uv_tcp_bind(&server, uv_ip4_addr(address, port));
+  struct sockaddr_in addr;
+  status = uv_ip4_addr(address, port, &addr);
+  assert(!status);
+  status = uv_tcp_bind(&server, (const struct sockaddr*) &addr);
   assert(!status);
   uv_listen((uv_stream_t*)&server, 128, on_connect);
   Log::info("Listening on port %d", port);
