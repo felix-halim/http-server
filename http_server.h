@@ -1,159 +1,102 @@
-#ifndef _HTTP_SERVER_
-#define _HTTP_SERVER_
+#ifndef SIMPLE_HTTP_SERVER_
+#define SIMPLE_HTTP_SERVER_
 
-#include <cassert>
-#include <vector>
+#include <functional>
+#include <memory>
 #include <sstream>
 #include <string>
-#include <cstring>
 #include <map>
-#include <unordered_map>
-#include <chrono>
-#include <algorithm>
 
-class http_parser_settings;
+namespace simple_http {
 
-namespace http {
+  using std::map;
+  using std::string;
+  using std::unique_ptr;
+  using std::stringstream;
 
-  using namespace std;
-  using namespace chrono;
+  struct Request {
+    map<string, string> headers;
+    string url;
+    string body;
 
-  // Global logging to standard error.
-  struct Log {
-    static int max_level;
-    static void error(const char *fmt, ... );
-    static void warn(const char *fmt, ... );
-    static void info(const char *fmt, ... );
-  };
-
-
-  class Request {
-    unordered_map<string, string> headers_;
-    string url_;
-    string body_;
-
-    stringstream url_ss_;
-    bool url_read_error_;
-
-   public:
-
-    // Returns the request URL.
-    const string url() { return url_; }
-
-    // Returns the request body.
-    const string body() { return body_; }
-
-    // Returns the value of the specified header key.
-    const string header(string key) const;
-
-    // Read the next integer from the URL.
-    Request& operator >>(int &value);
-
-    // Read the next unsigned long long from the URL.
-    Request& operator >>(unsigned long long &value);
-
-    // Read the next string that matches {@code str} from the URL.
-    Request& operator >>(const char *str);
-
-    // Read the rest of the url.
-    Request& operator >>(string &str);
-
-    // Read the next integers (in csv format) from the URL.
-    Request& operator >>(std::vector<int> &arr);
-
-    void set_url(string url);
-    void set_header(string key, string value) { headers_[key] = value; }
-    void clear() { headers_.clear(); url_ = body_ = ""; }
-    bool has_error() { return url_read_error_; }
-  };
-
-
-
-  class ObjectPool {
-   protected:
-    int index_;
-    time_point<system_clock> start_time_;
-
-   public:
-    ObjectPool(): index_(-1) {}
-    int index() { return index_; }
-    void set_index(int index) { index_ = index; }
-    void init(int index) {
-      assert(index_ == -1 && index != -1);
-      index_ = index;
-      start_time_ = system_clock::now();
-    }
-    unsigned long long elapsed() {
-      return duration_cast<milliseconds>(system_clock::now() - start_time_).count();
+    void clear() {
+      headers.clear();
+      url = body = "";
     }
   };
 
-  class Connection;
-  class Response : public ObjectPool {
-    Connection *connection_;
-    string prefix_;
-    bool is_sent_;
-    void *write_req; // the type is uv_write_t
-    char *buffer; // Delete this if not null;
+  class ResponseImpl;
 
-  public:
+  // The Response class can be used for asynchronous processing.
+  class Response {
+   public:
+    Response(ResponseImpl*);
+    ~Response();
 
-    Response();
-    void reset();
-    void delete_buffer() { if (buffer) { delete[] buffer; buffer = NULL; } }
+    // Response body. Fill this before calling send() or flush().
+    stringstream& body();
 
-    // Setters.
-    const string& prefix() { return prefix_; }
-    Connection* connection() { return connection_; }
+    // Flushes the current response body.
+    void flush();
 
-    // Getters.
-    void set_prefix(string prefix) { prefix_ = prefix; }
-    void set_connection(Connection*);
+    // Sends the response to the client with the specified error code.
+    // No more call flush() or appending to body after calling send().
+    void send(int code = 200, int max_age_in_seconds = 0, int expected_runtime_ms = 500);
 
-    // Response body. Fill this before calling send().
-    stringstream body;
-
-    // Sends the response to the client. Exactly call this ONCE.
-    // Set the expected_runtime to -1.0 if error occurs.
-    // Set the http cache control if needed.
-    void send(double expected_runtime = 0.05, int max_age_in_seconds = 0);
+   private:
+    // Not owned by this class.
+    ResponseImpl* impl;
   };
 
+  class VarzImpl;
 
-  typedef void (*Handler)(Request &req, Response &res);
-  template<typename T> class ObjectsPool;
-  class LatencyHistogram;
-  class WriteRequest;
+  // Statistis for monitoring.
+  class Varz {
+   public:
+    Varz();
+    ~Varz();
+    unsigned long long get(string key);
+    void set(string key, unsigned long long value);
+    void inc(string key, unsigned long long value = 1);
+    void latency(string key, int us);
+    void print_to(stringstream &ss);
+
+   private:
+    unique_ptr<VarzImpl> impl;
+  };
+
+  typedef std::function<void(Request&, Response&)> Handler;
+
+  class ServerImpl;
 
   class Server {
-    vector<pair<string, Handler>> handlers;
-    map<string, LatencyHistogram*> varz_hist;
-    map<string, unsigned long long> varz;
-    http_parser_settings *parser_settings;
-    ObjectsPool<Connection> *connections_pool;
-
    public:
-
     Server();
+    ~Server();
+
+    // Non-copy-able.
+    Server(const Server&) = delete;
+    Server& operator=(const Server&) = delete;
 
     // Handles http requests where the URL matches the specified prefix.
     void get(string prefix, Handler);
 
     // Starts the http server at the specified address and port.
-    void listen(const char *address, int port);
+    void listen(string address, int port);
 
-    // Statistical values for monitoring.
-    unsigned long long varz_get(string key);
-    void varz_set(string key, unsigned long long value);
-    void varz_inc(string key, unsigned long long value = 1);
-    void varz_latency(string key, int us);
-    void varz_print(stringstream &ss);
+    // Server statistics.
+    Varz* varz();
 
-    // For internal use.
-    void process(Request &req, Response &res);
-    Connection* acquire_connection();
-    void release_connection(Connection*);
-    const http_parser_settings* get_parser_settings() { return parser_settings; }
+   private:
+    unique_ptr<ServerImpl> impl;
+  };
+
+  // Global logging to standard error.
+  struct Log {
+    static int max_level;
+    static void severe(const char *fmt, ... );
+    static void warn(const char *fmt, ... );
+    static void info(const char *fmt, ... );
   };
 }
 

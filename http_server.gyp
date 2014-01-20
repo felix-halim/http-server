@@ -6,6 +6,7 @@
       'type': 'static_library',
       'sources': [
         'http_server.cc',
+        'http_server_impl.cc',
       ],
       'dependencies': [
         'libuv/uv.gyp:libuv',

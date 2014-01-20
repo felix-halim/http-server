@@ -14,9 +14,12 @@ case $1 in
 
 	build_mac)
 		gyp/gyp --depth=. -Dlibrary=static_library http_server.gyp -f xcode
-		xcodebuild -project http_server.xcodeproj -configuration Release -target All
+		xcodebuild -verbose -project http_server.xcodeproj -configuration Release -target All
 		;;
 
+	run_test_mac)
+		./build/Default/test_server
+		;;
 
 	clean)
 		rm -rf build
