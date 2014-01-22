@@ -78,10 +78,9 @@ Varz* Server::varz() { return &impl->varz; }
 
 Response::Response(ResponseImpl *r): impl(r) {}
 Response::~Response() {}
-void Response::flush() { assert(impl); /* Not supported yet. */ }
-void Response::send(int code, int max_age_in_seconds, int expected_runtime_ms) {
+void Response::send(Code code, int max_age_s, int max_runtime_ms) {
   assert(impl);
-  impl->send(code, max_age_in_seconds, expected_runtime_ms);
+  impl->send(code, max_age_s, max_runtime_ms);
   impl = nullptr;
 }
 stringstream& Response::body() { assert(impl); return impl->body; }

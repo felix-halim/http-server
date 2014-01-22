@@ -23,13 +23,13 @@ static void add_handler(Request& req, Response& res) {
   if (sscanf(url, "/add/%lld,%lld", &a, &b) != 2) {
     res.body() << "{\"error\":\"URL Request Error\"}\n";
     app().varz()->inc("Malformed URL");
-    return res.send(400);
+    return res.send(Response::Code::NOT_FOUND);
   }
 
   if (a + b > 1000) {
     res.body() << "{\"error\":\"Internal Server Error\"}\n";
     app().varz()->inc("Server Crashed");
-    return res.send(500);
+    return res.send(Response::Code::SERVER_ERROR);
   }
 
   res.body() << "a + b = " << a + b << "\n";
@@ -50,13 +50,13 @@ static void add_async_handler(Request& req, Response& res) {
   if (sscanf(url, "/add_async/%lld,%lld", &a, &b) != 2) {
     res.body() << "{\"error\":\"URL Request Error\"}\n";
     app().varz()->inc("Malformed URL");
-    return res.send(400);
+    return res.send(Response::Code::NOT_FOUND);
   }
 
   if (a + b > 1000) {
     res.body() << "{\"error\":\"Internal Server Error\"}\n";
     app().varz()->inc("Server Crashed");
-    return res.send(500);
+    return res.send(Response::Code::SERVER_ERROR);
   }
 
   res.body() << "a + b = " << a + b << "\n";
@@ -68,6 +68,7 @@ static void add_flush_handler(Request& req, Response& res) {
   // Clears all pending responses.
 
   Log::info("Flushing %lu", pending.size());
+  reverse(pending.begin(), pending.end());
   for (Response &p : pending) {
     p.send();
     Log::info("Flushed");

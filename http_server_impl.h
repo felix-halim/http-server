@@ -10,9 +10,11 @@
 #include <chrono>
 #include <memory>
 #include <vector>
+#include <queue>
 
 namespace simple_http {
 
+using std::queue;
 using std::vector;
 using std::pair;
 using std::chrono::time_point;
@@ -37,6 +39,7 @@ class Connection {
   ConnectionState state;    // The state of the current parsing request.
   uv_tcp_t handle;          // TCP connection handle to the client browser.
   http_parser parser;       // HTTP parser to parse the client http requests.
+  bool cleanup_is_scheduled;
 
   int append_url(const char *p, size_t len);
   int append_header_field(const char *p, size_t len);
@@ -46,10 +49,11 @@ class Connection {
   void build_request();
   Request request;          // Previous Calls to parse() are used to build this Request.
 
-  Response create_response();      // Returns a detached object for async response.
-  void destroy_response();  // Reclaim the response object.
+  ResponseImpl* create_response(string prefix);      // Returns a detached object for async response.
+  void flush_responses();
+  bool disposeable();
 
-  bool disposeable();       // Returns true if response object is the connection is closed and response object is no longer used.
+  void cleanup();           // Flush all pending responses and destroy this connection if no longer used.
   void reset();             // Prepare the connection for the next request.
 
  private:
@@ -58,7 +62,8 @@ class Connection {
   stringstream temp_hv_; // Header value.
   stringstream url_;     // Request URL.
   stringstream body_;    // Request body.
-  int active_response;   // Number of response objects currently active.
+  queue<ResponseImpl*> responses;
+  uv_timer_t timer;
 };
 
 
@@ -70,14 +75,29 @@ class ResponseImpl {
   ResponseImpl(Connection *con, string req_url);
   ~ResponseImpl();
 
-  void send(int code, int max_age_in_seconds, int expected_runtime_ms);
+  // In a pipelined response, this send request will be queued if it's not the head.
+  void send(Response::Code code, int max_age_s, int max_runtime_ms);
+
+  // Send the body to client then asynchronously call "cb".
+  void flush(uv_write_cb cb);
+
   Connection* connection() { return c; }
+  int get_state() { return state; }
+  void finish() {
+    assert(state == 2);
+    state = 3;
+    c->cleanup();
+  }
 
  private:
   Connection *c; // Not owned.
   string url;
   time_point<system_clock> start_time;
   uv_buf_t send_buffer;
+  int state; // 0 = initialized, 1 = after send(), 2 = after flush(), 3 = finished
+  Response::Code code;
+  int max_age_s;
+  int max_runtime_ms;
   uv_write_t write_req;
 };
 

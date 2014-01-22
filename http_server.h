@@ -30,18 +30,23 @@ namespace simple_http {
   // The Response class can be used for asynchronous processing.
   class Response {
    public:
+    enum class Code {
+      OK,
+      NOT_FOUND,
+      SERVER_ERROR,
+    };
+
     Response(ResponseImpl*);
     ~Response();
 
     // Response body. Fill this before calling send() or flush().
     stringstream& body();
 
-    // Flushes the current response body.
-    void flush();
-
     // Sends the response to the client with the specified error code.
-    // No more call flush() or appending to body after calling send().
-    void send(int code = 200, int max_age_in_seconds = 0, int expected_runtime_ms = 500);
+    // No more appends to body allowed after calling send().
+    // max_age_s is the number of seconds this request should be cached.
+    // A warning is printed if the send() is not called within max_runtime_ms.
+    void send(Code code = Code::OK, int max_age_s = 0, int max_runtime_ms = 500);
 
    private:
     // Not owned by this class.
