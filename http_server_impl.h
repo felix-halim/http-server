@@ -58,10 +58,10 @@ class Connection {
 
  private:
   // Temporaries for populating Request instance.
-  stringstream temp_hf_; // Header field.
-  stringstream temp_hv_; // Header value.
-  stringstream url_;     // Request URL.
-  stringstream body_;    // Request body.
+  ostringstream temp_hf_; // Header field.
+  ostringstream temp_hv_; // Header value.
+  ostringstream url_;     // Request URL.
+  ostringstream body_;    // Request body.
   queue<ResponseImpl*> responses;
   uv_timer_t timer;
 };
@@ -70,7 +70,7 @@ class Connection {
 
 class ResponseImpl {
  public:
-  stringstream body;
+  ostringstream body;
 
   ResponseImpl(Connection *con, string req_url);
   ~ResponseImpl();

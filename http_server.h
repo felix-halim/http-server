@@ -12,7 +12,7 @@ namespace simple_http {
   using std::map;
   using std::string;
   using std::unique_ptr;
-  using std::stringstream;
+  using std::ostringstream;
 
   struct Request {
     map<string, string> headers;
@@ -40,7 +40,7 @@ namespace simple_http {
     ~Response();
 
     // Response body. Fill this before calling send() or flush().
-    stringstream& body();
+    ostringstream& body();
 
     // Sends the response to the client with the specified error code.
     // No more appends to body allowed after calling send().
@@ -64,7 +64,7 @@ namespace simple_http {
     void set(string key, unsigned long long value);
     void inc(string key, unsigned long long value = 1);
     void latency(string key, int us);
-    void print_to(stringstream &ss);
+    void print_to(ostringstream &ss);
 
    private:
     unique_ptr<VarzImpl> impl;

@@ -16,7 +16,7 @@ class LatencyHistogram {
     if (us < 0) Log::severe("Adding negative runtime: %d us", us);
     else buckets[31 - __builtin_clz(std::max(us, 1))]++;
   }
-  void print(stringstream &ss) {
+  void print(ostringstream &ss) {
     ss << "[";
     for (int i = 0; i < 30; i++) ss << buckets[i] << ",";
     ss << buckets[30] << "]";
@@ -38,7 +38,7 @@ class VarzImpl {
     }
     varz_hist[key]->add(us);
   }
-  void print_to(stringstream &ss) {
+  void print_to(ostringstream &ss) {
     ss << "{\n";
     bool first = true;
     for (auto &it : varz) {
@@ -65,7 +65,7 @@ unsigned long long Varz::get(string key) { return impl->get(key); }
 void Varz::set(string key, unsigned long long value) { impl->set(key, value); }
 void Varz::inc(string key, unsigned long long value) { impl->inc(key, value); }
 void Varz::latency(string key, int us) { impl->latency(key, us); }
-void Varz::print_to(stringstream &ss) { impl->print_to(ss); }
+void Varz::print_to(ostringstream &ss) { impl->print_to(ss); }
 
 
 
@@ -83,7 +83,7 @@ void Response::send(Code code, int max_age_s, int max_runtime_ms) {
   impl->send(code, max_age_s, max_runtime_ms);
   impl = nullptr;
 }
-stringstream& Response::body() { assert(impl); return impl->body; }
+ostringstream& Response::body() { assert(impl); return impl->body; }
 
 
 #define LOG_FMT_STDERR(prefix)        \

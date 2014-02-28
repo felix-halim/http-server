@@ -163,7 +163,7 @@ static void after_write(uv_write_t* req, int status) {
   res->finish();
 }
 
-static int sstream_length(stringstream &ss) {
+static int sstream_length(std::stringstream &ss) {
   ss.seekg(0, std::ios::end);
   int length = ss.tellg();
   ss.seekg(0, std::ios::beg);
@@ -198,16 +198,17 @@ void ResponseImpl::flush(uv_write_cb cb) {
   assert(!c->disposeable());
   c->server->varz.inc("server_response_send");
 
-  stringstream ss; 
+  ostringstream ss; 
   switch (code) {
     case Response::Code::OK: ss << "HTTP/1.1 200 OK" CRLF CORS_HEADERS; break;
     case Response::Code::NOT_FOUND: ss << "HTTP/1.1 400 URL Request Error" CRLF CORS_HEADERS; break;
     case Response::Code::SERVER_ERROR: ss << "HTTP/1.1 500 Internal Server Error" CRLF CORS_HEADERS; break;
     default: Log::severe("unknown code %d", code); assert(0); break;
   }
-  ss << "Content-Length: " << sstream_length(body) << "\r\n";
+  string body_str = body.str();
+  ss << "Content-Length: " << body_str.length() << "\r\n";
   if (max_age_s > 0) ss << "Cache-Control: no-transform,public,max-age=" << max_age_s << "\r\n";
-  ss << "\r\n" << body.str() << "\r\n";
+  ss << "\r\n" << body_str << "\r\n";
 
   string s = ss.str();
   send_buffer.base = new char[send_buffer.len = s.length()];
@@ -243,7 +244,7 @@ Connection::Connection(ServerImpl *s): server(s) {
 
 Connection::~Connection() {}
 
-static void clear_ss(stringstream &ss) { ss.clear(); ss.str(""); }
+static void clear_ss(ostringstream &ss) { ss.clear(); ss.str(""); }
 
 void Connection::reset() {
   state = ConnectionState::READING_URL;
