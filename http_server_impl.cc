@@ -163,13 +163,6 @@ static void after_write(uv_write_t* req, int status) {
   res->finish();
 }
 
-static int sstream_length(std::stringstream &ss) {
-  ss.seekg(0, std::ios::end);
-  int length = ss.tellg();
-  ss.seekg(0, std::ios::beg);
-  return length;
-}
-
 ResponseImpl::ResponseImpl(Connection *con, string req_url):
   c(con), url(req_url), start_time(system_clock::now()), send_buffer({nullptr, 0}), state(0) {}
 

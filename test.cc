@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <vector>
+#include <algorithm>
 
 using namespace std;
 using namespace simple_http;

@@ -7,13 +7,13 @@ case $1 in
 
 
 	build)
-		gyp/gyp --depth=. -Dlibrary=static_library http_server.gyp -f make
+		gyp/gyp --depth=. -Ilibuv/common.gypi -Duv_library=static_library http_server.gyp -f make
 		make
 		;;
 
 
 	build_mac)
-		gyp/gyp --depth=. -Dlibrary=static_library http_server.gyp -f xcode
+		gyp/gyp --depth=. -Ilibuv/common.gypi -Duv_library=static_library http_server.gyp -f xcode
 		xcodebuild -verbose -project http_server.xcodeproj -configuration Release -target All
 		;;
 
