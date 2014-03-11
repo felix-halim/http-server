@@ -7,76 +7,17 @@ namespace simple_http {
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 
-static int on_url(http_parser* parser, const char* p, size_t len) {
-  Connection* c = static_cast<Connection*>(parser->data);
-  return c->append_url(p, len);
-}
-
-static int on_header_field(http_parser* parser, const char* at, size_t len) {
-  Connection* c = static_cast<Connection*>(parser->data);
-  return c->append_header_field(at, len);
-}
-
-static int on_header_value(http_parser* parser, const char* at, size_t len) {
-  Connection* c = static_cast<Connection*>(parser->data);
-  return c->append_header_value(at, len);
-}
-
-static int on_headers_complete(http_parser* parser) {
-  Connection* c = static_cast<Connection*>(parser->data);
-  return c->append_header_field("", 0);
-}
-
-static int on_body(http_parser* parser, const char* p, size_t len) {
-  Connection* c = static_cast<Connection*>(parser->data);
-  return c->append_body(p, len);
-}
-
-static bool is_prefix_of(const string &prefix, const string &str) {
-  auto res = std::mismatch(prefix.begin(), prefix.end(), str.begin());
-  return res.first == prefix.end();
-}
-
-static int on_message_complete(http_parser* parser) {
-  Connection* c = static_cast<Connection*>(parser->data);
-  assert(c->state != ConnectionState::CLOSED);
-  c->build_request();
-  c->server->varz.inc("server_on_message_complete");
-
-  for (auto &it : c->server->handlers) {
-    if (is_prefix_of(it.first, c->request.url)) {
-      // Handle the request.
-      Response res { c->create_response(it.first) };
-      it.second(c->request, res);
-      // Recycle the connection and request object.
-      c->reset();
-      return 0; // Continue parsing.
-    }
-  }
-
-  // No handler for the request, send 404 error.
-  Response res { c->create_response("/unknown") };
-  res.body() << "Request not found for " << c->request.url;
-  res.send(Response::Code::NOT_FOUND);
-  c->reset(); // Recycle the connection and request object.
-  return 0;   // Continue parsing.
-}
-
 ServerImpl::ServerImpl() {
-  memset(&parser_settings, 0, sizeof(http_parser_settings));
-  parser_settings.on_url = on_url;
-  parser_settings.on_header_field = on_header_field;
-  parser_settings.on_header_value = on_header_value;
-  parser_settings.on_headers_complete = on_headers_complete;
-  parser_settings.on_body = on_body;
-  parser_settings.on_message_complete = on_message_complete;
   get("/varz", [&](Request& req, Response& res) {
     varz.print_to(res.body());
     res.send();
   });
 }
 
-
+static bool is_prefix_of(const string &prefix, const string &str) {
+  auto res = std::mismatch(prefix.begin(), prefix.end(), str.begin());
+  return res.first == prefix.end();
+}
 
 void ServerImpl::get(string path, Handler handler) {
   for (auto &it : handlers) {
@@ -88,47 +29,37 @@ void ServerImpl::get(string path, Handler handler) {
   handlers.push_back(make_pair(path, handler));
 }
 
-
-
-static constexpr int MAX_BUFFER_LEN = 64 * 1024;
-static char buffer[MAX_BUFFER_LEN], buffer_is_used = 0;
-
-static void on_alloc(uv_handle_t* h, size_t suggested_size, uv_buf_t *buf) {
-  assert(suggested_size == MAX_BUFFER_LEN); // libuv dependent code.
-  assert(!buffer_is_used);
-  buffer_is_used = 1;
-  buf->base = buffer;
-  buf->len = MAX_BUFFER_LEN;
-}
-
-static void on_close(uv_handle_t* handle) {
-  Connection* c = static_cast<Connection*>(handle->data);
-  assert(c && c->state != ConnectionState::CLOSED);
-  c->state = ConnectionState::CLOSED;
-  c->cleanup();
-}
-
-static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t *buf) {
-  assert(buffer_is_used);
-  buffer_is_used = 0;
-  Connection* c = static_cast<Connection*>(tcp->data);
-  assert(c && c->state != ConnectionState::CLOSED);
-  if (nread < 0 || !c->parse(buf->base, nread)) {
-    uv_close((uv_handle_t*) &c->handle, on_close);
-  }
-}
-
 static void on_connect(uv_stream_t* server_handle, int status) {
   ServerImpl *server = static_cast<ServerImpl*>(server_handle->data);
   assert(server && !status);
   Connection* c = new Connection(server);
   c->server->varz.inc("server_connection_alloc");
-  c->reset();
   uv_tcp_init(uv_default_loop(), &c->handle);
   status = uv_accept(server_handle, (uv_stream_t*) &c->handle);
   assert(!status);
-  http_parser_init(&c->parser, HTTP_REQUEST);
-  uv_read_start((uv_stream_t*) &c->handle, on_alloc, on_read);
+
+  c->the_parser.start((uv_stream_t*) &c->handle, HTTP_REQUEST,
+    [&](Request &req) {
+      // On message complete.
+      c->server->varz.inc("server_on_message_complete");
+      for (auto &it : c->server->handlers) {
+        if (is_prefix_of(it.first, req.url)) {
+          // Handle the request.
+          Response res { c->create_response(it.first) };
+          it.second(req, res);
+          return;
+        }
+      }
+      // No handler for the request, send 404 error.
+      Response res { c->create_response("/unknown") };
+      res.body() << "Request not found for " << req.url;
+      res.send(Response::Code::NOT_FOUND);
+
+    }, [&] () {
+      // On close.
+      c->cleanup();
+      Log::warn("CLEANUP");
+    });
 }
 
 void ServerImpl::listen(string address, int port) {
@@ -187,7 +118,7 @@ void ResponseImpl::flush(uv_write_cb cb) {
   state = 2; // after flush().
   auto t1 = system_clock::now();
   assert(c);
-  assert(c->state != ConnectionState::CLOSED);
+  assert(c->state != HttpParserState::CLOSED);
   assert(!c->disposeable());
   c->server->varz.inc("server_response_send");
 
@@ -230,70 +161,11 @@ void ResponseImpl::flush(uv_write_cb cb) {
 
 Connection::Connection(ServerImpl *s): server(s) {
   handle.data = this;
-  parser.data = this;
   timer.data = this;
   cleanup_is_scheduled = false;
 }
 
 Connection::~Connection() {}
-
-static void clear_ss(ostringstream &ss) { ss.clear(); ss.str(""); }
-
-void Connection::reset() {
-  state = ConnectionState::READING_URL;
-  clear_ss(temp_hf_);
-  clear_ss(temp_hv_);
-  clear_ss(url_);
-  clear_ss(body_);
-  request.clear();
-}
-
-int Connection::append_url(const char *p, size_t len) {
-  assert(state == ConnectionState::READING_URL);
-  url_.write(p, len);
-  return 0;
-}
-
-void Connection::build_request() {
-  if (state == ConnectionState::READING_URL) {
-    request.url = url_.str();
-    state = ConnectionState::READING_HEADER_FIELD;
-  }
-  if (state == ConnectionState::READING_HEADER_VALUE) {
-    request.headers[temp_hf_.str()] = temp_hv_.str();
-    clear_ss(temp_hf_);
-    clear_ss(temp_hv_);
-    state = ConnectionState::READING_HEADER_FIELD;
-  }
-}
-
-int Connection::append_header_field(const char *p, size_t len) {
-  build_request();
-  temp_hf_.write(p, len);
-  return 0;
-}
-
-int Connection::append_header_value(const char *p, size_t len) {
-  assert(state != ConnectionState::READING_URL);
-  assert(state != ConnectionState::READING_HEADER_VALUE);
-  if (state == ConnectionState::READING_HEADER_FIELD) {
-    state = ConnectionState::READING_HEADER_VALUE;
-  }
-  temp_hv_.write(p, len);
-  return 0;
-}
-
-int Connection::append_body(const char *p, size_t len) {
-  body_.write(p, len);
-  return 0;
-}
-
-bool Connection::parse(const char *buf, ssize_t nread) {
-  assert(server);
-  ssize_t parsed = http_parser_execute(&parser, &server->parser_settings, buf, nread);
-  assert(parsed <= nread);
-  return parsed == nread;
-}
 
 ResponseImpl* Connection::create_response(string prefix) {
   ResponseImpl* res = new ResponseImpl(this, prefix);
@@ -324,7 +196,7 @@ void Connection::flush_responses() {
   while (!responses.empty()) {
     ResponseImpl* res = responses.front();
     if (res->get_state() == 0) return; // Not yet responded.
-    if (res->get_state() == 1 && state != ConnectionState::CLOSED) return res->flush(after_write);
+    if (res->get_state() == 1 && the_parser.state != HttpParserState::CLOSED) return res->flush(after_write);
     if (res->get_state() == 2) return; // Not yet written.
     responses.pop();
     server->varz.inc("server_response_impl_dealloc");
@@ -333,7 +205,7 @@ void Connection::flush_responses() {
 }
 
 bool Connection::disposeable() {
-  return state == ConnectionState::CLOSED && responses.empty();
+  return the_parser.state == HttpParserState::CLOSED && responses.empty();
 }
 
 };

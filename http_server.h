@@ -7,6 +7,8 @@
 #include <string>
 #include <map>
 
+#include "logger.h"
+
 namespace simple_http {
 
   using std::map;
@@ -94,14 +96,6 @@ namespace simple_http {
 
    private:
     unique_ptr<ServerImpl> impl;
-  };
-
-  // Global logging to standard error.
-  struct Log {
-    static int max_level;
-    static void severe(const char *fmt, ... );
-    static void warn(const char *fmt, ... );
-    static void info(const char *fmt, ... );
   };
 }
 
