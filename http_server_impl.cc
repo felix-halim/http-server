@@ -39,8 +39,9 @@ static void on_connect(uv_stream_t* server_handle, int status) {
   assert(!status);
 
   c->the_parser.start((uv_stream_t*) &c->handle, HTTP_REQUEST,
-    [&](Request &req) {
+    [c](Request &req) {
       // On message complete.
+      // Log::info("message complete con %p, the_parser = %p, url = %s", c, &c->the_parser, req.url.c_str());
       c->server->varz.inc("server_on_message_complete");
       for (auto &it : c->server->handlers) {
         if (is_prefix_of(it.first, req.url)) {
@@ -55,10 +56,10 @@ static void on_connect(uv_stream_t* server_handle, int status) {
       res.body() << "Request not found for " << req.url;
       res.send(Response::Code::NOT_FOUND);
 
-    }, [&] () {
+    }, [c] () {
       // On close.
+      // Log::info("Connection closing %p", c);
       c->cleanup();
-      Log::warn("CLEANUP");
     });
 }
 
@@ -110,6 +111,7 @@ void ResponseImpl::send(Response::Code code, int max_age_s, int max_runtime_ms) 
   this->code = code;
   this->max_age_s = max_age_s;
   this->max_runtime_ms = max_runtime_ms;
+  // Log::info("RESPONSE send con = %p, code = %d", c, code);
   c->cleanup();
 }
 
@@ -163,9 +165,12 @@ Connection::Connection(ServerImpl *s): server(s) {
   handle.data = this;
   timer.data = this;
   cleanup_is_scheduled = false;
+  // Log::warn("Connection created %p", this);
 }
 
-Connection::~Connection() {}
+Connection::~Connection() {
+  // Log::warn("Connection destroyed %p", this);
+}
 
 ResponseImpl* Connection::create_response(string prefix) {
   ResponseImpl* res = new ResponseImpl(this, prefix);
@@ -181,6 +186,7 @@ static void cleanup_connection(uv_timer_t* handle, int status) {
   c->flush_responses();
   if (c->disposeable()) {
     c->server->varz.inc("server_connection_dealloc");
+    // Log::warn("Connection cleaned up: %p", c);
     delete c;
   }
 }

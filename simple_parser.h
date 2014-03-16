@@ -22,6 +22,7 @@ constexpr int MAX_BUFFER_LEN = 64 * 1024;
 class HttpParser {
  public:
   HttpParser();
+  ~HttpParser();
 
   // Start reading from the stream, and calls on_message_complete callback when a complete http request is received.
   // The callback may be called multiple times (i.e., http pipelining) until the stream is closed.
@@ -41,7 +42,9 @@ class HttpParser {
 
   void reset();                         // Prepare the HttpParser for the next request.
   void build_request();                 // Make the request ready for consumption.
+  void close();
 
+  uv_stream_t* tcp;                     // Not owned, passed in through start(), used for close().
   http_parser_settings parser_settings; // Built-in implementation of parsing http requests.
   char buffer[MAX_BUFFER_LEN];          // Reading buffer.
   ostringstream temp_hf_;               // Header field.

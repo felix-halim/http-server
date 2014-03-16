@@ -17,10 +17,6 @@ case $1 in
 		xcodebuild -verbose -project http_server.xcodeproj -configuration Release -target All
 		;;
 
-	run_test_mac)
-		./build/Default/test_server
-		;;
-
 	clean)
 		rm -rf build
 		;;

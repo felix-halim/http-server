@@ -27,6 +27,8 @@ static int on_message_complete(http_parser* parser) {
   HttpParser* c = static_cast<HttpParser*>(parser->data);
   assert(c->state != HttpParserState::CLOSED);
   c->build_request();
+  c->request.body = c->body_.str();
+  // Log::info("on_message_complete parser %p : %s", c, c->request.body.c_str());
   c->msg_cb(c->request);
   c->reset(); // Recycle the HttpParser and request object.
   return 0;   // Continue parsing.
@@ -44,8 +46,13 @@ HttpParser::HttpParser() {
   parser.data = this;
 
   reset();
+
+  // Log::info("parser created %p", this);
 }
 
+HttpParser::~HttpParser() {
+  // Log::info("parser destroyed %p", this);
+}
 
 static void on_alloc(uv_handle_t* handle, size_t suggested_size, uv_buf_t *buf) {
   HttpParser* c = static_cast<HttpParser*>(handle->data);
@@ -59,13 +66,15 @@ static void on_close(uv_handle_t* handle) {
   assert(c && c->state != HttpParserState::CLOSED);
   c->state = HttpParserState::CLOSED;
   c->close_cb();
+  // Log::info("parser on_close %p", c);
 }
 
 static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t *buf) {
   HttpParser* c = static_cast<HttpParser*>(tcp->data);
   assert(c && c->state != HttpParserState::CLOSED);
+  // Log::info("on_read parser %p, nread = %d", c, nread);
   if (nread < 0 || !c->parse(buf->base, nread)) {
-    uv_close((uv_handle_t*) tcp, on_close);
+    c->close();
   }
 }
 
@@ -74,12 +83,17 @@ void HttpParser::start(
     enum http_parser_type type,
     std::function<void(Request&)> on_message_complete,
     std::function<void()> on_close) {
+  tcp = stream;
   assert(!stream->data);
   stream->data = this;
   msg_cb = on_message_complete;
   close_cb = on_close;
   http_parser_init(&parser, type);
   uv_read_start(stream, on_alloc, on_read);
+}
+
+void HttpParser::close() {
+  uv_close((uv_handle_t*) tcp, on_close);
 }
 
 static void clear_ss(ostringstream &ss) { ss.clear(); ss.str(""); }
@@ -129,6 +143,7 @@ int HttpParser::append_header_value(const char *p, size_t len) {
 }
 
 int HttpParser::append_body(const char *p, size_t len) {
+  // Log::info("body = %.*s", len, p);
   body_.write(p, len);
   return 0;
 }

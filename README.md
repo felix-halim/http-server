@@ -11,9 +11,9 @@ To compile on OSX:
 
     ./run.sh build_mac
 
-To run on OSX:
+To run the server on OSX:
 
-    ./run.sh run_test_mac
+    ./build/Release/test_server
 
 Then go to these URLs:
 
@@ -33,8 +33,13 @@ Then go to these URLs:
     the previous tab should also have responded.
 
 
-See <b>test.cc</b> on how to use.
+See <b>[https://github.com/felix-halim/http-server/blob/master/test_server.cc](test_server.cc)</b> for the server code.
 
+See
+<b>[https://github.com/felix-halim/http-server/blob/master/test_add.cc](test_add.cc)</b>,
+<b>[https://github.com/felix-halim/http-server/blob/master/test_add_async.cc](test_add_async.cc)</b>,
+<b>[https://github.com/felix-halim/http-server/blob/master/test_add_flush.cc](test_add_flush.cc)</b>,  for the client codes.
+The test_add_async.cc tries to reconnect if connection to the server is failing.
 
 <b>Note</b>: this project is just for trying out things.
 It is not tested at all! <b>Use at your own risk</b>.
