@@ -33,12 +33,12 @@ Then go to these URLs:
     the previous tab should also have responded.
 
 
-See <b>[https://github.com/felix-halim/http-server/blob/master/test_server.cc](test_server.cc)</b> for the server code.
+See <b>[test_server.cc](https://github.com/felix-halim/http-server/blob/master/test_server.cc)</b> for the server code.
 
 See
-<b>[https://github.com/felix-halim/http-server/blob/master/test_add.cc](test_add.cc)</b>,
-<b>[https://github.com/felix-halim/http-server/blob/master/test_add_async.cc](test_add_async.cc)</b>,
-<b>[https://github.com/felix-halim/http-server/blob/master/test_add_flush.cc](test_add_flush.cc)</b>,  for the client codes.
+<b>[test_add.cc](https://github.com/felix-halim/http-server/blob/master/test_add.cc)</b>,
+<b>[test_add_async.cc](https://github.com/felix-halim/http-server/blob/master/test_add_async.cc)</b>,
+<b>[test_add_flush.cc](https://github.com/felix-halim/http-server/blob/master/test_add_flush.cc)</b>,  for the client codes.
 The test_add_async.cc tries to reconnect if connection to the server is failing.
 
 <b>Note</b>: this project is just for trying out things.
