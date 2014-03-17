@@ -4,16 +4,24 @@ Simple HTTP Server
 A simple HTTP server in C++ built on top of 
 [libuv](https://github.com/joyent/libuv)
 and
-[http-parser](https://github.com/joyent/http-parser)
-.
+[http-parser](https://github.com/joyent/http-parser).
+
+Initialize the submodules:
+
+    ./run.sh init
+
+To compile on Linux:
+
+    ./run.sh build
 
 To compile on OSX:
 
     ./run.sh build_mac
 
-To run the server on OSX:
+Run the http server:
 
-    ./build/Release/test_server
+    ./build/Release/test_server  # on OSX
+    ./out/Debug/test_server      # on Linux
 
 
 Then go to these URLs using your browser:
