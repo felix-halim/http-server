@@ -149,7 +149,6 @@ class Connection {
   ~Connection();
 
   ServerImpl *server;       // The server that created this connection object.
-  bool cleanup_is_scheduled;
   ResponseImpl* create_response(string prefix);      // Returns a detached object for async response.
   void flush_responses();
   bool disposeable();
@@ -158,7 +157,6 @@ class Connection {
   queue<ResponseImpl*> responses;
   uv_tcp_t handle;          // TCP connection handle to the client browser.
   HttpParser the_parser;    // The parser for the TCP stream handle.
-  uv_timer_t timer;         // Cleanup timer.
 };
 
 
@@ -273,7 +271,7 @@ static void on_connect(uv_stream_t* server_handle, int status) {
       res.body() << "Request not found for " << req.url;
       res.send(Response::Code::NOT_FOUND);
 
-    }, [c] () {
+    }, [c]() {
       // On close.
       // Log::info("Connection closing %p", c);
       c->cleanup();
@@ -380,8 +378,6 @@ void ResponseImpl::flush(uv_write_cb cb) {
 
 Connection::Connection(ServerImpl *s): server(s) {
   handle.data = this;
-  timer.data = this;
-  cleanup_is_scheduled = false;
   // Log::warn("Connection created %p", this);
 }
 
@@ -396,23 +392,13 @@ ResponseImpl* Connection::create_response(string prefix) {
   return res;
 }
 
-static void cleanup_connection(uv_timer_t* handle, int status) {
-  Connection* c = static_cast<Connection*>(handle->data);
-  assert(c && c->cleanup_is_scheduled);
-  c->cleanup_is_scheduled = false;
-  c->flush_responses();
-  if (c->disposeable()) {
-    c->server->varz.inc("server_connection_dealloc");
-    // Log::warn("Connection cleaned up: %p", c);
-    delete c;
-  }
-}
-
 void Connection::cleanup() {
-  if (cleanup_is_scheduled) return;
-  uv_timer_init(uv_default_loop(), &timer);
-  uv_timer_start(&timer, cleanup_connection, 0, 0);
-  cleanup_is_scheduled = true;
+  flush_responses();
+  if (disposeable()) {
+    server->varz.inc("server_connection_dealloc");
+    // Log::warn("Connection DELETE: %p", this);
+    delete this;
+  }
 }
 
 void Connection::flush_responses() {
@@ -494,13 +480,9 @@ HttpParser::HttpParser() {
   parser.data = this;
 
   reset();
-
-  // Log::info("parser created %p", this);
 }
 
-HttpParser::~HttpParser() {
-  // Log::info("parser destroyed %p", this);
-}
+HttpParser::~HttpParser() {}
 
 static void on_alloc(uv_handle_t* handle, size_t suggested_size, uv_buf_t *buf) {
   HttpParser* c = static_cast<HttpParser*>(handle->data);
@@ -514,7 +496,6 @@ static void on_close(uv_handle_t* handle) {
   assert(c && c->state != HttpParserState::CLOSED);
   c->state = HttpParserState::CLOSED;
   c->close_cb();
-  // Log::info("parser on_close %p", c);
 }
 
 static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t *buf) {
@@ -530,12 +511,11 @@ void HttpParser::start(
     uv_stream_t *stream,
     enum http_parser_type type,
     function<void(Request&)> on_message_complete,
-    function<void()> on_close) {
+    function<void()> on_close_cb) {
   tcp = stream;
-  // assert(!stream->data);
   stream->data = this;
   msg_cb = on_message_complete;
-  close_cb = on_close;
+  close_cb = on_close_cb;
   http_parser_init(&parser, type);
   uv_read_start(stream, on_alloc, on_read);
 }
