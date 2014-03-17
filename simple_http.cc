@@ -2,6 +2,10 @@
 #include "simple_http.h"
 #include "uv.h"
 
+#include <assert.h>
+#include <string.h>
+#include <stdarg.h>
+
 #include <chrono>
 #include <queue>
 #include <algorithm>
@@ -333,7 +337,7 @@ void ResponseImpl::flush(uv_write_cb cb) {
   state = 2; // after flush().
   auto t1 = system_clock::now();
   assert(c);
-  assert(c->state != HttpParserState::CLOSED);
+  assert(c->the_parser.state != HttpParserState::CLOSED);
   assert(!c->disposeable());
   c->server->varz.inc("server_response_send");
 
@@ -528,7 +532,7 @@ void HttpParser::start(
     function<void(Request&)> on_message_complete,
     function<void()> on_close) {
   tcp = stream;
-  assert(!stream->data);
+  // assert(!stream->data);
   stream->data = this;
   msg_cb = on_message_complete;
   close_cb = on_close;
@@ -593,7 +597,6 @@ int HttpParser::append_body(const char *p, size_t len) {
 }
 
 bool HttpParser::parse(const char *buf, ssize_t nread) {
-  assert(server);
   ssize_t parsed = http_parser_execute(&parser, &parser_settings, buf, nread);
   assert(parsed <= nread);
   return parsed == nread;
