@@ -1,13 +1,11 @@
-#ifndef SIMPLE_HTTP_SERVER_
-#define SIMPLE_HTTP_SERVER_
+#ifndef SIMPLE_HTTP_
+#define SIMPLE_HTTP_
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <string>
-#include <map>
-
-#include "logger.h"
 
 namespace simple_http {
 
@@ -16,7 +14,8 @@ namespace simple_http {
   using std::unique_ptr;
   using std::ostringstream;
 
-  struct Request {
+  class Request {
+   public:
     map<string, string> headers;
     string url;
     string body;
@@ -97,6 +96,33 @@ namespace simple_http {
    private:
     unique_ptr<ServerImpl> impl;
   };
+
+  // Global logging to standard error.
+  struct Log {
+    static int max_level;
+    static void severe(const char *fmt, ... );
+    static void warn(const char *fmt, ... );
+    static void info(const char *fmt, ... );
+  };
+
+
+  class ClientImpl;
+
+  class Client {
+   public:
+
+    Client(const char *addr, int port = 80);
+    ~Client();
+
+    void request(const char *url, const string &body,
+      std::function<void(const string&)> response_callback);
+
+    void close();
+
+   private:
+    unique_ptr<ClientImpl> impl;
+  };
+
 }
 
 #endif

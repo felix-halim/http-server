@@ -4,11 +4,7 @@
       'target_name': 'http_server',
       'type': 'static_library',
       'sources': [
-        'http_server.cc',
-        'http_server_impl.cc',
-        'simple_parser.cc',
-        'http_client.cc',
-        'logger.cc',
+        'simple_http.cc',
       ],
       'dependencies': [
         'libuv/uv.gyp:libuv',
@@ -35,42 +31,10 @@
     },
 
     {
-      'target_name': 'test_add',
+      'target_name': 'test_client',
       'type': 'executable',
       'sources': [
-        'test_add.cc',
-      ],
-      'include_dirs': [],
-      'dependencies': [
-        'libuv/uv.gyp:libuv',
-        'http_server.gyp:http_server',
-      ],
-      'xcode_settings': {
-        'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
-      },
-    },
-
-    {
-      'target_name': 'test_add_async',
-      'type': 'executable',
-      'sources': [
-        'test_add_async.cc',
-      ],
-      'include_dirs': [],
-      'dependencies': [
-        'libuv/uv.gyp:libuv',
-        'http_server.gyp:http_server',
-      ],
-      'xcode_settings': {
-        'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
-      },
-    },
-
-    {
-      'target_name': 'test_add_flush',
-      'type': 'executable',
-      'sources': [
-        'test_add_flush.cc',
+        'test_client.cc',
       ],
       'include_dirs': [],
       'dependencies': [
@@ -81,7 +45,6 @@
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
       },
     }
-
   ],
 }
 

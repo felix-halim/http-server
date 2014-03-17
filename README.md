@@ -15,7 +15,8 @@ To run the server on OSX:
 
     ./build/Release/test_server
 
-Then go to these URLs:
+
+Then go to these URLs using your browser:
 
 
 * [http://localhost:8000/add/2,3](http://localhost:8000/add/2,3)
@@ -33,13 +34,16 @@ Then go to these URLs:
     the previous tab should also have responded.
 
 
-See <b>[test_server.cc](https://github.com/felix-halim/http-server/blob/master/test_server.cc)</b> for the server code.
+Or access the server using the client code:
 
-See
-<b>[test_add.cc](https://github.com/felix-halim/http-server/blob/master/test_add.cc)</b>,
-<b>[test_add_async.cc](https://github.com/felix-halim/http-server/blob/master/test_add_async.cc)</b>,
-<b>[test_add_flush.cc](https://github.com/felix-halim/http-server/blob/master/test_add_flush.cc)</b>,  for the client codes.
-The test_add_async.cc tries to reconnect if connection to the server is failing.
+    ./build/Release/test_client "/add/1,4"
+    ./build/Release/test_client "/add_async/8,11"
+    ./build/Release/test_client "/add_flush"
+
+
+See <b>[test_server.cc](https://github.com/felix-halim/http-server/blob/master/test_server.cc)</b> for the server code.
+See <b>[test_client.cc](https://github.com/felix-halim/http-server/blob/master/test_client.cc)</b> for the client code.
+The client tries to reconnect if connection to the server is failing.
 
 <b>Note</b>: this project is just for trying out things.
 It is not tested at all! <b>Use at your own risk</b>.

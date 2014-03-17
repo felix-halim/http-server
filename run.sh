@@ -5,12 +5,10 @@ case $1 in
 		git submodule update
 		;;
 
-
 	build)
 		gyp/gyp --depth=. -Ilibuv/common.gypi -Duv_library=static_library http_server.gyp -f make
 		make
 		;;
-
 
 	build_mac)
 		gyp/gyp --depth=. -Ilibuv/common.gypi -Duv_library=static_library http_server.gyp -f xcode
