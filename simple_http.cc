@@ -502,6 +502,7 @@ static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t *buf) {
   HttpParser* c = static_cast<HttpParser*>(tcp->data);
   assert(c && c->state != HttpParserState::CLOSED);
   // Log::info("on_read parser %p, nread = %d", c, nread);
+  // Log::info("%.*s", buf->len, buf->base);
   if (nread < 0 || !c->parse(buf->base, nread)) {
     c->close();
   }
@@ -734,25 +735,29 @@ static void write_string(char *s, int length, uv_tcp_t* tcp) {
 }
 
 void ClientImpl::flush() {
-  if (connection_status == ClientState::CONNECTED && is_idle && !req_queue.empty()) {
-    char url[1024];
-    assert(!cb_queue.empty());
-    const char *path = req_queue.front().first.c_str();
-    // Log::info("flush %s con=%d, qsize=%d", path, connection_status, cb_queue.size());
-    if (req_queue.front().second.length()) {
-      int length = req_queue.front().second.length();
-      sprintf(url, "POST %s HTTP/1.1\r\nContent-Type: multipart/form-data\r\nContent-Length: %d\r\n\r\n", path, length);
-      write_string(url, strlen(url), &handle);
-      write_string((char*) req_queue.front().second.data(), length, &handle);
-      sprintf(url + 1000, "\r\n");
-      write_string(url + 1000, strlen(url + 1000), &handle);
+  if (connection_status == ClientState::CONNECTED) {
+    if (is_idle && !req_queue.empty()) {
+      char url[1024];
+      assert(!cb_queue.empty());
+      const char *path = req_queue.front().first.c_str();
+      // Log::info("flush %s con=%d, qsize=%d", path, connection_status, cb_queue.size());
+      if (req_queue.front().second.length()) {
+        int length = req_queue.front().second.length();
+        sprintf(url, "POST %s HTTP/1.1\r\nContent-Type: multipart/form-data\r\nContent-Length: %d\r\n\r\n", path, length);
+        write_string(url, strlen(url), &handle);
+        write_string((char*) req_queue.front().second.data(), length, &handle);
+        sprintf(url + 1000, "\r\n");
+        write_string(url + 1000, strlen(url + 1000), &handle);
+      } else {
+        sprintf(url, "GET %s HTTP/1.1\r\n\r\n", path);
+        write_string(url, strlen(url), &handle);
+      }
+      is_idle = false;
     } else {
-      sprintf(url, "GET %s HTTP/1.1\r\n\r\n", path);
-      write_string(url, strlen(url), &handle);
+      // Log::info("Waiting for result of previous call");
     }
-    is_idle = false;
   } else if (!cb_queue.empty()) {
-    Log::info("failed flush %d != %d, %d", connection_status, ClientState::CONNECTED, cb_queue.size());
+    Log::warn("Failed flush, not connected, cb_queue size = %d", cb_queue.size());
   }
 }
 
@@ -760,7 +765,7 @@ void ClientImpl::try_connect() {
   switch (connection_status) {
     case ClientState::CONNECTED: Log::severe("Already connected"); assert(0); break;
     case ClientState::CONNECTING: Log::severe("Try double connect"); assert(0); break;
-    case ClientState::WAITING: Log::info("Try connect: state WAITING"); break;
+    case ClientState::WAITING: /* Log::info("Try connect: state WAITING"); */ break;
     case ClientState::DISCONNECTED: Log::info("Try connect: state DISCONNECTED");
       uv_timer_stop(&connect_timer);
     case ClientState::UNINITED: Log::info("Try connect: state UNINITED");
