@@ -16,7 +16,7 @@ case $1 in
 		;;
 
 	clean)
-		rm -rf build
+		rm -rf build out http_server.Makefile http_server.target.mk http_server.xcodeproj test_server.target.mk gyp-mac-tool Makefile
 		;;
 
 esac
