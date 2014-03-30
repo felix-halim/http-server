@@ -1,6 +1,6 @@
 Simple HTTP Server
 ===========
-
+[![Build Status](https://travis-ci.org/felix-halim/http-server.svg?branch=master)](https://travis-ci.org/felix-halim/http-server)
 A simple HTTP server in C++ built on top of 
 [libuv](https://github.com/joyent/libuv)
 and
