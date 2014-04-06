@@ -1,4 +1,5 @@
 #include "http_server_impl.h"
+#include <stdarg.h>
 
 namespace simple_http {
 

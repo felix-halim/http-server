@@ -1,6 +1,7 @@
 #include "http_server_impl.h"
 
 #include <assert.h>
+#include <string.h>
 
 namespace simple_http {
 
