@@ -6,6 +6,9 @@ A simple HTTP server and client in C++11 built on top of
 and
 [http-parser](https://github.com/joyent/http-parser).
 
+<b>Note</b>: this project is just for trying out things.
+It is not tested at all! <b>Use at your own risk</b>.
+
 Initialize the submodules:
 
     ./run.sh init
@@ -52,6 +55,3 @@ Or access the server using the client code:
 See <b>[test_server.cc](https://github.com/felix-halim/http-server/blob/master/test_server.cc)</b> for the server code.
 See <b>[test_client.cc](https://github.com/felix-halim/http-server/blob/master/test_client.cc)</b> for the client code.
 The client tries to reconnect if connection to the server is failing.
-
-<b>Note</b>: this project is just for trying out things.
-It is not tested at all! <b>Use at your own risk</b>.
