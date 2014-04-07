@@ -618,7 +618,7 @@ class ClientImpl {
 };
 
 static void on_connect(uv_connect_t *req, int status);
-static void try_connect_cb(uv_timer_t* handle, int status) {
+static void try_connect_cb(uv_timer_t* handle) {
   ClientImpl *c = (ClientImpl*) handle->data;
   Log::warn("Connecting to %s:%d", c->host.c_str(), c->port);
   c->connection_status = ClientState::CONNECTING;
