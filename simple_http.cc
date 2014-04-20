@@ -284,10 +284,11 @@ void ServerImpl::listen(string address, int port) {
   server.data = this;
   int status = uv_tcp_init(uv_default_loop(), &server);
   assert(!status);
-  struct sockaddr_in addr;
-  status = uv_ip4_addr(address.c_str(), port, &addr);
-  assert(!status);
-  status = uv_tcp_bind(&server, (const struct sockaddr*) &addr, 0);
+  // struct sockaddr_in addr;
+  // status = uv_ip4_addr(address.c_str(), port, &addr);
+  // assert(!status);
+  // status = uv_tcp_bind(&server, (const struct sockaddr*) &addr);
+  status = uv_tcp_bind(&server, uv_ip4_addr(address.c_str(), port));
   assert(!status);
   uv_listen((uv_stream_t*)&server, 128, on_connect);
   Log::info("Listening on port %d", port);
@@ -484,6 +485,12 @@ HttpParser::HttpParser() {
 
 HttpParser::~HttpParser() {}
 
+static uv_buf_t on_alloc_uv_0_10(uv_handle_t* handle, size_t suggested_size) {
+  HttpParser* c = static_cast<HttpParser*>(handle->data);
+  assert(suggested_size == MAX_BUFFER_LEN); // libuv dependent code.
+  return uv_buf_init(c->buffer, MAX_BUFFER_LEN);
+}
+
 static void on_alloc(uv_handle_t* handle, size_t suggested_size, uv_buf_t *buf) {
   HttpParser* c = static_cast<HttpParser*>(handle->data);
   assert(suggested_size == MAX_BUFFER_LEN); // libuv dependent code.
@@ -496,6 +503,12 @@ static void on_close(uv_handle_t* handle) {
   assert(c && c->state != HttpParserState::CLOSED);
   c->state = HttpParserState::CLOSED;
   c->close_cb();
+}
+
+static void on_read_uv_0_10(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
+  HttpParser* c = static_cast<HttpParser*>(tcp->data);
+  assert(c && c->state != HttpParserState::CLOSED);
+  if (nread < 0 || !c->parse(buf.base, nread)) c->close();
 }
 
 static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t *buf) {
@@ -518,7 +531,7 @@ void HttpParser::start(
   msg_cb = on_message_complete;
   close_cb = on_close_cb;
   http_parser_init(&parser, type);
-  uv_read_start(stream, on_alloc, on_read);
+  uv_read_start(stream, on_alloc_uv_0_10, on_read_uv_0_10);
 }
 
 void HttpParser::close() {
@@ -618,14 +631,12 @@ class ClientImpl {
 };
 
 static void on_connect(uv_connect_t *req, int status);
-static void try_connect_cb(uv_timer_t* handle) {
+static void try_connect_cb(uv_timer_t* handle, int status) {
   ClientImpl *c = (ClientImpl*) handle->data;
   Log::warn("Connecting to %s:%d", c->host.c_str(), c->port);
   c->connection_status = ClientState::CONNECTING;
   uv_tcp_init(uv_default_loop(), &c->handle);
-  struct sockaddr_in dest;
-  uv_ip4_addr(c->host.c_str(), c->port, &dest);
-  int r = uv_tcp_connect(&c->connect_req, &c->handle, (const struct sockaddr*) &dest, on_connect);
+  int r = uv_tcp_connect(&c->connect_req, &c->handle, uv_ip4_addr(c->host.c_str(), c->port), on_connect);
   if (r) {
     Log::severe("Failed connecting to %s:%d", c->host.c_str(), c->port);
     on_connect(&c->connect_req, r);
