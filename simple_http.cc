@@ -507,16 +507,20 @@ static void on_close(uv_handle_t* handle) {
 
 static void on_read_uv_0_10(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
   HttpParser* c = static_cast<HttpParser*>(tcp->data);
-  assert(c && c->state != HttpParserState::CLOSED);
-  if (nread < 0 || !c->parse(buf.base, nread)) c->close();
+  assert(c);
+  if (nread < 0 || !c->parse(buf.base, nread)) {
+    assert(c->state != HttpParserState::CLOSED);
+    c->close();
+  }
 }
 
 static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t *buf) {
   HttpParser* c = static_cast<HttpParser*>(tcp->data);
-  assert(c && c->state != HttpParserState::CLOSED);
+  assert(c);
   // Log::info("on_read parser %p, nread = %d", c, nread);
   // Log::info("%.*s", buf->len, buf->base);
   if (nread < 0 || !c->parse(buf->base, nread)) {
+    assert(c->state != HttpParserState::CLOSED);
     c->close();
   }
 }
