@@ -12,7 +12,11 @@
       ],
       'cflags_cc': [ '-std=c++11' ],
       'conditions': [
-         ['OS == "linux"', { 'libraries': ['-lcrypto'] }],
+         ['OS == "linux"', {
+           'link_settings': {
+             'libraries': ['-lssl', '-lcrypto']
+           }
+         }],
          ['OS == "mac"', {
             'libraries': ['/opt/local/lib/libcrypto.a'],
             'xcode_settings': {
