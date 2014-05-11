@@ -370,7 +370,10 @@ void ResponseImpl::flush(uv_write_cb cb) {
     ss << "Cache-Control: public,max-age=" << max_age_s << "\r\n";
     if (last_modified > 0) {
       time_t t = last_modified;
-      ss << "Last-Modified: " << std::put_time(gmtime(&t), "%a, %d %b %Y %H:%M:%S GMT") << std::endl;
+      char buffer[80];
+      strftime(buffer, 80, "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
+      ss << "Last-Modified: " << buffer << std::endl;
+      // ss << "Last-Modified: " << std::put_time(gmtime(&t), "%a, %d %b %Y %H:%M:%S GMT") << std::endl;
     }
   }
   ss << "\r\n" << body_str << "\r\n";
