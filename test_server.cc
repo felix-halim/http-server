@@ -1,8 +1,9 @@
 #include "simple_http.h"
 
-#include <cstring>
-#include <vector>
 #include <algorithm>
+#include <cstring>
+#include <ctime>
+#include <vector>
 
 using namespace std;
 using namespace simple_http;
@@ -34,8 +35,16 @@ static void add_handler(Request& req, Response& res) {
   }
 
   res.body() << "a + b = " << a + b << "\n";
-  // Send 200 OK, cached for 1 minute, response time should be less than 2 ms.
-  res.send(Response::Code::OK, 60, 2);
+
+  // Response time should be less than 2 ms.
+  res.set_max_runtime_warning(2);
+
+  // HTTP cached for 1 minute, on cache miss Last-Modified will be checked.
+  res.set_max_age(60, 1399804033); // Sun May 11 2014 03:27:08 GMT-0700 (PDT)
+
+  // Send 200 OK.
+  res.send(Response::Code::OK);
+
   app().varz()->inc("OK");
 }
 

@@ -6,11 +6,11 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include <openssl/md5.h>
-
-#include <chrono>
-#include <queue>
 #include <algorithm>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <queue>
 
 namespace simple_http {
 
@@ -165,12 +165,15 @@ class Connection {
 class ResponseImpl {
  public:
   ostringstream body;
+  int max_age_s;
+  int max_runtime_ms;
+  int last_modified;
 
   ResponseImpl(Connection *con, string req_url);
   ~ResponseImpl();
 
   // In a pipelined response, this send request will be queued if it's not the head.
-  void send(Response::Code code, int max_age_s, int max_runtime_ms);
+  void send(Response::Code code);
 
   // Send the body to client then asynchronously call "cb".
   void flush(uv_write_cb cb);
@@ -190,8 +193,6 @@ class ResponseImpl {
   uv_buf_t send_buffer;
   int state; // 0 = initialized, 1 = after send(), 2 = after flush(), 3 = finished
   Response::Code code;
-  int max_age_s;
-  int max_runtime_ms;
   uv_write_t write_req;
 };
 
@@ -215,9 +216,18 @@ Varz* Server::varz() { return &impl->varz; }
 
 Response::Response(ResponseImpl *r): impl(r) {}
 Response::~Response() {}
-void Response::send(Code code, int max_age_s, int max_runtime_ms) {
+void Response::set_max_age(int seconds, int last_modified) {
   assert(impl);
-  impl->send(code, max_age_s, max_runtime_ms);
+  impl->max_age_s = seconds;
+  impl->last_modified = last_modified;
+}
+void Response::set_max_runtime_warning(int milliseconds) {
+  assert(impl);
+  impl->max_runtime_ms = milliseconds;
+}
+void Response::send(Code code) {
+  assert(impl);
+  impl->send(code);
   impl = nullptr;
 }
 ostringstream& Response::body() { assert(impl); return impl->body; }
@@ -314,7 +324,14 @@ static void after_flush(uv_write_t* req, int status) {
 }
 
 ResponseImpl::ResponseImpl(Connection *con, string req_url):
-  c(con), url(req_url), start_time(system_clock::now()), send_buffer({nullptr, 0}), state(0) {}
+  max_age_s(0),
+  max_runtime_ms(500),
+  last_modified(0),
+  c(con),
+  url(req_url),
+  start_time(system_clock::now()),
+  send_buffer({nullptr, 0}),
+  state(0) {}
 
 ResponseImpl::~ResponseImpl() {
   if (send_buffer.base) {
@@ -323,28 +340,12 @@ ResponseImpl::~ResponseImpl() {
   }
 }
 
-void ResponseImpl::send(Response::Code code, int max_age_s, int max_runtime_ms) {
+void ResponseImpl::send(Response::Code code) {
   assert(c);          // send() can only be called exactly once.
   this->state = 1;    // after send().
   this->code = code;
-  this->max_age_s = max_age_s;
-  this->max_runtime_ms = max_runtime_ms;
   // Log::info("RESPONSE send con = %p, code = %d", c, code);
   c->cleanup();
-}
-
-static string md5str(const char* s, int len) {
-  unsigned char digest[16];
-  MD5_CTX ctx;
-  MD5_Init(&ctx);
-  MD5_Update(&ctx, s, len);
-  MD5_Final(digest, &ctx);
-
-  char mdString[33] = { 0 };
-  for (int i = 0; i < 16; i++)
-    sprintf(&mdString[i*2], "%02x", (unsigned int)digest[i]);
-  // printf("md5 digest: %s\n", mdString);
-  return mdString;
 }
 
 void ResponseImpl::flush(uv_write_cb cb) {
@@ -367,7 +368,10 @@ void ResponseImpl::flush(uv_write_cb cb) {
   ss << "Content-Length: " << body_str.length() << "\r\n";
   if (max_age_s > 0) {
     ss << "Cache-Control: public,max-age=" << max_age_s << "\r\n";
-    ss << "ETag: " << md5str(body_str.c_str(), body_str.length()) << "\r\n";
+    if (last_modified > 0) {
+      time_t t = last_modified;
+      ss << "Last-Modified: " << std::put_time(gmtime(&t), "%a, %d %b %Y %H:%M:%S GMT") << std::endl;
+    }
   }
   ss << "\r\n" << body_str << "\r\n";
 

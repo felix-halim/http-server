@@ -12,9 +12,7 @@
       ],
       'cflags_cc': [ '-std=c++11' ],
       'conditions': [
-         ['OS == "linux"', { 'libraries': ['-lcrypto'] }],
          ['OS == "mac"', {
-            'libraries': ['/opt/local/lib/libcrypto.a'],
             'xcode_settings': {
               'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
               'OTHER_CPLUSPLUSFLAGS': [ '-stdlib=libc++' ]
