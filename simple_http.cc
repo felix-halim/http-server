@@ -6,6 +6,8 @@
 #include <string.h>
 #include <stdarg.h>
 
+#include <openssl/md5.h>
+
 #include <chrono>
 #include <queue>
 #include <algorithm>
@@ -331,6 +333,20 @@ void ResponseImpl::send(Response::Code code, int max_age_s, int max_runtime_ms) 
   c->cleanup();
 }
 
+static string md5str(const char* s, int len) {
+  unsigned char digest[16];
+  MD5_CTX ctx;
+  MD5_Init(&ctx);
+  MD5_Update(&ctx, s, len);
+  MD5_Final(digest, &ctx);
+
+  char mdString[33] = { 0 };
+  for (int i = 0; i < 16; i++)
+    sprintf(&mdString[i*2], "%02x", (unsigned int)digest[i]);
+  // printf("md5 digest: %s\n", mdString);
+  return mdString;
+}
+
 void ResponseImpl::flush(uv_write_cb cb) {
   assert(state == 1);
   state = 2; // after flush().
@@ -349,7 +365,10 @@ void ResponseImpl::flush(uv_write_cb cb) {
   }
   string body_str = body.str();
   ss << "Content-Length: " << body_str.length() << "\r\n";
-  if (max_age_s > 0) ss << "Cache-Control: no-transform,public,max-age=" << max_age_s << "\r\n";
+  if (max_age_s > 0) {
+    ss << "Cache-Control: public,max-age=" << max_age_s << "\r\n";
+    ss << "ETag: " << md5str(body_str.c_str(), body_str.length()) << "\r\n";
+  }
   ss << "\r\n" << body_str << "\r\n";
 
   string s = ss.str();

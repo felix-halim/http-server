@@ -13,7 +13,7 @@ case $1 in
 		;;
 
 	build_mac)
-		gyp/gyp --depth=. -Ilibuv/common.gypi -Dlibrary=static_library http_server.gyp -f xcode
+		gyp/gyp -Dtarget_arch=x64 --depth=. -Ilibuv/common.gypi -Dlibrary=static_library http_server.gyp -f xcode
 		xcodebuild -verbose -project http_server.xcodeproj -configuration Release -target All
 		;;
 

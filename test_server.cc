@@ -34,8 +34,8 @@ static void add_handler(Request& req, Response& res) {
   }
 
   res.body() << "a + b = " << a + b << "\n";
-  // Send 200 OK.
-  res.send();
+  // Send 200 OK, cached for 1 minute, response time should be less than 2 ms.
+  res.send(Response::Code::OK, 60, 2);
   app().varz()->inc("OK");
 }
 
