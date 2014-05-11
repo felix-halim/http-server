@@ -17,6 +17,7 @@
             'libraries': ['/opt/local/lib/libcrypto.a'],
             'xcode_settings': {
               'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
+              'OTHER_CPLUSPLUSFLAGS': [ '-stdlib=libc++' ]
             },
          }]
       ],
@@ -35,6 +36,7 @@
       'cflags_cc': [ '-std=c++11' ],
       'xcode_settings': {
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
+        'OTHER_CPLUSPLUSFLAGS': [ '-stdlib=libc++' ]
       },
     },
 
@@ -52,6 +54,7 @@
       'cflags_cc': [ '-std=c++11' ],
       'xcode_settings': {
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
+        'OTHER_CPLUSPLUSFLAGS': [ '-stdlib=libc++' ]
       },
     }
   ],
