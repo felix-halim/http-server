@@ -12,14 +12,6 @@
       ],
       'cflags_cc': [ '-std=c++11' ],
       'conditions': [
-<<<<<<< HEAD
-=======
-         ['OS == "linux"', {
-           'link_settings': {
-             'libraries': ['-lssl', '-lcrypto']
-           }
-         }],
->>>>>>> 82e463a3a76b039c95366243e0d983de41848475
          ['OS == "mac"', {
             'xcode_settings': {
               'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
