@@ -486,12 +486,13 @@ static int on_body(http_parser* parser, const char* p, size_t len) {
 
 static int on_message_complete(http_parser* parser) {
   HttpParser* c = static_cast<HttpParser*>(parser->data);
-  assert(c->state != HttpParserState::CLOSED);
-  c->build_request();
-  c->request.body = c->body_.str();
-  // Log::info("on_message_complete parser %p : %s", c, c->request.body.c_str());
-  c->msg_cb(c->request);
-  c->reset(); // Recycle the HttpParser and request object.
+  if (c->state != HttpParserState::CLOSED) {
+    c->build_request();
+    c->request.body = c->body_.str();
+    // Log::info("on_message_complete parser %p : %s", c, c->request.body.c_str());
+    c->msg_cb(c->request);
+    c->reset(); // Recycle the HttpParser and request object.
+  }
   return 0;   // Continue parsing.
 }
 
