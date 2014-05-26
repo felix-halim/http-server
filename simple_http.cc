@@ -582,9 +582,42 @@ int HttpParser::append_url(const char *p, size_t len) {
   return 0;
 }
 
+/* Converts a hex character to its integer value */
+static char from_hex(char ch) {
+  return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
+}
+
+/* Converts an integer value to its hex character*/
+static char to_hex(char code) {
+  static char hex[] = "0123456789abcdef";
+  return hex[code & 15];
+}
+
+/* Returns a url-decoded version of str */
+static char* url_decode(char *str, char *buf) {
+  char *pstr = str, *pbuf = buf;
+  while (*pstr) {
+    if (*pstr == '%') {
+      if (pstr[1] && pstr[2]) {
+        *pbuf++ = from_hex(pstr[1]) << 4 | from_hex(pstr[2]);
+        pstr += 2;
+      }
+    } else if (*pstr == '+') {
+      *pbuf++ = ' ';
+    } else {
+      *pbuf++ = *pstr;
+    }
+    pstr++;
+  }
+  *pbuf = '\0';
+  return buf;
+}
+
 void HttpParser::build_request() {
   if (state == HttpParserState::READING_URL) {
     request.url = url_.str();
+    char *url = (char*) request.url.c_str();
+    url_decode(url, url);
     state = HttpParserState::READING_HEADER_FIELD;
   }
   if (state == HttpParserState::READING_HEADER_VALUE) {
