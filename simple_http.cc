@@ -370,7 +370,10 @@ void ResponseImpl::flush(uv_write_cb cb) {
     ss << "Cache-Control: public,max-age=" << max_age_s << "\r\n";
     if (last_modified > 0) {
       time_t t = last_modified;
-      ss << "Last-Modified: " << std::put_time(gmtime(&t), "%a, %d %b %Y %H:%M:%S GMT") << std::endl;
+      char buffer[80];
+      strftime(buffer, 80, "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
+      ss << "Last-Modified: " << buffer << std::endl;
+      // ss << "Last-Modified: " << std::put_time(gmtime(&t), "%a, %d %b %Y %H:%M:%S GMT") << std::endl;
     }
   }
   ss << "\r\n" << body_str << "\r\n";
@@ -483,12 +486,13 @@ static int on_body(http_parser* parser, const char* p, size_t len) {
 
 static int on_message_complete(http_parser* parser) {
   HttpParser* c = static_cast<HttpParser*>(parser->data);
-  assert(c->state != HttpParserState::CLOSED);
-  c->build_request();
-  c->request.body = c->body_.str();
-  // Log::info("on_message_complete parser %p : %s", c, c->request.body.c_str());
-  c->msg_cb(c->request);
-  c->reset(); // Recycle the HttpParser and request object.
+  if (c->state != HttpParserState::CLOSED) {
+    c->build_request();
+    c->request.body = c->body_.str();
+    // Log::info("on_message_complete parser %p : %s", c, c->request.body.c_str());
+    c->msg_cb(c->request);
+    c->reset(); // Recycle the HttpParser and request object.
+  }
   return 0;   // Continue parsing.
 }
 
