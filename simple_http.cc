@@ -385,15 +385,15 @@ void ResponseImpl::flush(uv_write_cb cb) {
   c->server->varz.inc("server_sent_bytes", send_buffer.len);
 
   auto t2 = system_clock::now();
-  auto ms1 = duration_cast<nanoseconds>(t1 - start_time).count();
-  auto ms2 = duration_cast<nanoseconds>(t2 - t1).count();
-  auto ms = duration_cast<nanoseconds>(t2 - start_time).count();
-  c->server->varz.latency("server_process", ms1);
-  c->server->varz.latency("server_serialize", ms2);
-  c->server->varz.latency("server_response", ms);
-  c->server->varz.latency(url, ms);
-  if (ms >= max_runtime_ms) {
-    Log::warn("runtime =%6.3lf + %6.3lf = %6.3lf, prefix = %s", ms1 * 1e-3, ms2 * 1e-3, ms * 1e-3, url.c_str());
+  auto ns1 = duration_cast<nanoseconds>(t1 - start_time).count();
+  auto ns2 = duration_cast<nanoseconds>(t2 - t1).count();
+  auto ns = duration_cast<nanoseconds>(t2 - start_time).count();
+  c->server->varz.latency("server_process", ns1);
+  c->server->varz.latency("server_serialize", ns2);
+  c->server->varz.latency("server_response", ns);
+  c->server->varz.latency(url, ns);
+  if (ns * 1e-6 >= max_runtime_ms) {
+    Log::warn("runtime =%6.3lf + %6.3lf = %6.3lf, prefix = %s", ns1 * 1e-3, ns2 * 1e-3, ns * 1e-3, url.c_str());
   }
 
   write_req.data = this;
