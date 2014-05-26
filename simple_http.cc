@@ -351,7 +351,6 @@ void ResponseImpl::send(Response::Code code) {
 void ResponseImpl::flush(uv_write_cb cb) {
   assert(state == 1);
   state = 2; // after flush().
-  auto t1 = high_resolution_clock::now();
   assert(c);
   assert(c->the_parser.state != HttpParserState::CLOSED);
   assert(!c->disposeable());
@@ -384,16 +383,11 @@ void ResponseImpl::flush(uv_write_cb cb) {
   memcpy(send_buffer.base, s.data(), send_buffer.len);
   c->server->varz.inc("server_sent_bytes", send_buffer.len);
 
-  auto t2 = high_resolution_clock::now();
-  auto ns1 = duration_cast<nanoseconds>(t1 - start_time).count();
-  auto ns2 = duration_cast<nanoseconds>(t2 - t1).count();
-  auto ns = duration_cast<nanoseconds>(t2 - start_time).count();
-  c->server->varz.latency("server_process", ns1);
-  c->server->varz.latency("server_serialize", ns2);
+  auto ns = duration_cast<nanoseconds>(high_resolution_clock::now() - start_time).count();
   c->server->varz.latency("server_response", ns);
   c->server->varz.latency(url, ns);
   if (ns * 1e-6 >= max_runtime_ms) {
-    Log::warn("runtime =%6.3lf + %6.3lf = %6.3lf, prefix = %s", ns1 * 1e-9, ns2 * 1e-9, ns * 1e-9, url.c_str());
+    Log::warn("runtime = %6.3lf, prefix = %s", ns * 1e-9, url.c_str());
   }
 
   write_req.data = this;
