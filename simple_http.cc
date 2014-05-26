@@ -15,7 +15,7 @@
 namespace simple_http {
 
 using std::chrono::duration_cast;
-using std::chrono::nanoseconds;
+using std::chrono::microseconds;
 using std::chrono::high_resolution_clock;
 using std::chrono::time_point;
 using std::function;
@@ -383,11 +383,11 @@ void ResponseImpl::flush(uv_write_cb cb) {
   memcpy(send_buffer.base, s.data(), send_buffer.len);
   c->server->varz.inc("server_sent_bytes", send_buffer.len);
 
-  auto ns = duration_cast<nanoseconds>(high_resolution_clock::now() - start_time).count();
-  c->server->varz.latency("server_response", ns);
-  c->server->varz.latency(url, ns);
-  if (ns * 1e-6 >= max_runtime_ms) {
-    Log::warn("runtime = %6.3lf, prefix = %s", ns * 1e-9, url.c_str());
+  auto dur = duration_cast<microseconds>(high_resolution_clock::now() - start_time).count();
+  c->server->varz.latency("server_response", dur);
+  c->server->varz.latency(url, dur);
+  if (dur * 1e-3 >= max_runtime_ms) {
+    Log::warn("runtime = %6.3lf, prefix = %s", dur * 1e-6, url.c_str());
   }
 
   write_req.data = this;
