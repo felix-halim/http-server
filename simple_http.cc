@@ -15,7 +15,7 @@
 namespace simple_http {
 
 using std::chrono::duration_cast;
-using std::chrono::milliseconds;
+using std::chrono::nanoseconds;
 using std::chrono::system_clock;
 using std::chrono::time_point;
 using std::function;
@@ -385,9 +385,9 @@ void ResponseImpl::flush(uv_write_cb cb) {
   c->server->varz.inc("server_sent_bytes", send_buffer.len);
 
   auto t2 = system_clock::now();
-  auto ms1 = duration_cast<milliseconds>(t1 - start_time).count();
-  auto ms2 = duration_cast<milliseconds>(t2 - t1).count();
-  auto ms = duration_cast<milliseconds>(t2 - start_time).count();
+  auto ms1 = duration_cast<nanoseconds>(t1 - start_time).count();
+  auto ms2 = duration_cast<nanoseconds>(t2 - t1).count();
+  auto ms = duration_cast<nanoseconds>(t2 - start_time).count();
   c->server->varz.latency("server_process", ms1);
   c->server->varz.latency("server_serialize", ms2);
   c->server->varz.latency("server_response", ms);
