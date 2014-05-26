@@ -16,7 +16,7 @@ namespace simple_http {
 
 using std::chrono::duration_cast;
 using std::chrono::nanoseconds;
-using std::chrono::system_clock;
+using std::chrono::high_resolution_clock;
 using std::chrono::time_point;
 using std::function;
 using std::max;
@@ -189,7 +189,7 @@ class ResponseImpl {
  private:
   Connection *c; // Not owned.
   string url;
-  time_point<system_clock> start_time;
+  time_point<high_resolution_clock> start_time;
   uv_buf_t send_buffer;
   int state; // 0 = initialized, 1 = after send(), 2 = after flush(), 3 = finished
   Response::Code code;
@@ -329,7 +329,7 @@ ResponseImpl::ResponseImpl(Connection *con, string req_url):
   last_modified(0),
   c(con),
   url(req_url),
-  start_time(system_clock::now()),
+  start_time(high_resolution_clock::now()),
   send_buffer({nullptr, 0}),
   state(0) {}
 
@@ -351,7 +351,7 @@ void ResponseImpl::send(Response::Code code) {
 void ResponseImpl::flush(uv_write_cb cb) {
   assert(state == 1);
   state = 2; // after flush().
-  auto t1 = system_clock::now();
+  auto t1 = high_resolution_clock::now();
   assert(c);
   assert(c->the_parser.state != HttpParserState::CLOSED);
   assert(!c->disposeable());
@@ -384,7 +384,7 @@ void ResponseImpl::flush(uv_write_cb cb) {
   memcpy(send_buffer.base, s.data(), send_buffer.len);
   c->server->varz.inc("server_sent_bytes", send_buffer.len);
 
-  auto t2 = system_clock::now();
+  auto t2 = high_resolution_clock::now();
   auto ns1 = duration_cast<nanoseconds>(t1 - start_time).count();
   auto ns2 = duration_cast<nanoseconds>(t2 - t1).count();
   auto ns = duration_cast<nanoseconds>(t2 - start_time).count();
@@ -393,7 +393,7 @@ void ResponseImpl::flush(uv_write_cb cb) {
   c->server->varz.latency("server_response", ns);
   c->server->varz.latency(url, ns);
   if (ns * 1e-6 >= max_runtime_ms) {
-    Log::warn("runtime =%6.3lf + %6.3lf = %6.3lf, prefix = %s", ns1 * 1e-3, ns2 * 1e-3, ns * 1e-3, url.c_str());
+    Log::warn("runtime =%6.3lf + %6.3lf = %6.3lf, prefix = %s", ns1 * 1e-9, ns2 * 1e-9, ns * 1e-9, url.c_str());
   }
 
   write_req.data = this;
