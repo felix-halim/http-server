@@ -634,11 +634,10 @@ int HttpParser::append_header_field(const char *p, size_t len) {
 
 int HttpParser::append_header_value(const char *p, size_t len) {
   assert(state != HttpParserState::READING_URL);
-  assert(state != HttpParserState::READING_HEADER_VALUE);
   if (state == HttpParserState::READING_HEADER_FIELD) {
     state = HttpParserState::READING_HEADER_VALUE;
+    temp_hv_.write(p, len);
   }
-  temp_hv_.write(p, len);
   return 0;
 }
 
