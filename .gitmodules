@@ -3,7 +3,7 @@
 	url = https://github.com/joyent/http-parser.git
 [submodule "libuv"]
 	path = libuv
-	url = https://github.com/joyent/libuv.git
+	url = https://github.com/libuv/libuv.git
 [submodule "gyp"]
 	path = gyp
 	url = https://chromium.googlesource.com/external/gyp.git

@@ -10,7 +10,8 @@ int main(int argc, char *argv[]) {
   Client c { "127.0.0.1", 8000 };
 
   if (argc != 2) {
-    fprintf(stderr, "Usage: ./test_add [url]\n");
+    fprintf(stderr, "Usage: ./test_client [url]\n");
+    fprintf(stderr, "Example: ./test_client /add/1,2\n");
     return 0;
   }
 
