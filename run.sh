@@ -9,7 +9,7 @@ case $1 in
 
 	build)
 		gyp/gyp --depth=. -Ilibuv/common.gypi -Duv_library=static_library http_server.gyp -f make
-		make
+		make BUILDTYPE=${2:-Release} # or Debug
 		;;
 
 	build_mac)
