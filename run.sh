@@ -4,7 +4,7 @@ case $1 in
 		git submodule init
 		git submodule update
 		cd libuv
-		git checkout v0.10.33
+		git checkout v1.4.0
 		;;
 
 	build)
